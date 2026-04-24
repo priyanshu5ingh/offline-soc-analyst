@@ -229,10 +229,7 @@ async def force_sync():
     Force an immediate live stream sync, returning strict telemetry data
     for the frontend interactive console.
     """
-    res = sync_live_stream()
-    if res["status"] == "error":
-        raise HTTPException(status_code=500, detail=res["message"])
-    return res
+    return sync_live_stream()
 
 # ─── POST /api/analyze ────────────────────────────────────────────────────────────
 @app.post("/api/analyze")
