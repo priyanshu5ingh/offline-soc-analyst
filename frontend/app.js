@@ -237,6 +237,14 @@ function App() {
         setError("");
 
         try {
+            if (isManualRefresh) {
+                try {
+                    await fetch(`${API_BASE}/api/sync`, { method: "POST" });
+                } catch (syncErr) {
+                    console.error("Force sync failed:", syncErr);
+                }
+            }
+
             // Send the query directly to the backend FTS5 engine for real search
             const url = new URL(API_LOGS_URL);
             if (options.query && options.query.trim()) {

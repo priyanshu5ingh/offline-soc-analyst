@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
 STATIC_LOG_FILE  = "real_windows_logs.csv"       # Static Windows CSV ingested at boot
-LIVE_STREAM_FILE = "/app/shared_logs/live_stream.csv"  # Hot-reload path mounted via Docker volume
+LIVE_STREAM_FILE = os.path.join(os.path.dirname(__file__), "..", "shared_logs", "live_stream.csv")  # Hot-reload path
 DB_FILE          = "logs.db"
 POLL_INTERVAL    = 5   # seconds between live-stream polling cycles
 
