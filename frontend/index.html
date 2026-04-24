@@ -13,8 +13,8 @@
         * { box-sizing: border-box; }
         body {
             font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui;
-            background: #f0f4ff;
-            color: #1e293b;
+            background: #0B101E;
+            color: #cbd5e1;
         }
         .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
@@ -36,30 +36,34 @@
 
         /* ── Panel card ─────────────────────────────────────────────────── */
         .panel {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(99,102,241,0.18);
             border-radius: 22px;
-            box-shadow: 0 4px 24px rgba(99,102,241,0.07), 0 1px 4px rgba(0,0,0,0.04);
+            box-shadow: 0 4px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
             overflow: hidden;
             transition: box-shadow 0.3s;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
         }
-        .panel:hover { box-shadow: 0 8px 36px rgba(99,102,241,0.11), 0 2px 8px rgba(0,0,0,0.05); }
+        .panel:hover { box-shadow: 0 8px 48px rgba(99,102,241,0.18), 0 2px 8px rgba(0,0,0,0.3); }
 
         /* ── Telemetry card ─────────────────────────────────────────────── */
         .telem-card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-top: 2px solid transparent;
             border-radius: 18px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 2px 16px rgba(99,102,241,0.06);
+            box-shadow: 0 2px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
             transition: all 0.25s;
+            backdrop-filter: blur(10px);
         }
-        .telem-card:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(99,102,241,0.12); }
+        .telem-card:hover { transform: translateY(-3px); box-shadow: 0 12px 36px rgba(0,0,0,0.5); }
         .telem-card .accent-bar { height: 3px; width: 100%; }
         .telem-card .scan {
             position: absolute; left: 0; right: 0; height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(99,102,241,0.2), transparent);
+            background: linear-gradient(90deg, transparent, rgba(34,211,238,0.3), transparent);
             animation: scanBar 4s linear infinite;
             pointer-events: none;
         }
@@ -71,28 +75,28 @@
             font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
             font-family: 'JetBrains Mono', monospace; min-width: 76px;
         }
-        .badge-critical { background: #fff1f2; border: 1px solid #fda4af; color: #be123c; }
-        .badge-warning  { background: #fffbeb; border: 1px solid #fde68a; color: #b45309; }
-        .badge-info     { background: #f0f9ff; border: 1px solid #bae6fd; color: #0369a1; }
+        .badge-critical { background: rgba(190,18,60,0.15); border: 1px solid rgba(248,113,113,0.4); color: #f87171; text-shadow: 0 0 8px rgba(248,113,113,0.5); }
+        .badge-warning  { background: rgba(180,83,9,0.15);  border: 1px solid rgba(251,191,36,0.4); color: #fbbf24; text-shadow: 0 0 8px rgba(251,191,36,0.4); }
+        .badge-info     { background: rgba(8,145,178,0.15); border: 1px solid rgba(34,211,238,0.35); color: #22d3ee; text-shadow: 0 0 8px rgba(34,211,238,0.4); }
 
         /* ── Search bar ─────────────────────────────────────────────────── */
         .search-wrap {
-            background: #f8faff;
-            border: 1.5px solid #e0e7ff;
+            background: rgba(15,23,42,0.8);
+            border: 1.5px solid rgba(99,102,241,0.25);
             border-radius: 14px;
             transition: all 0.22s;
         }
         .search-wrap:focus-within {
             border-color: #818cf8;
-            background: #fff;
-            box-shadow: 0 0 0 4px rgba(129,140,248,0.15);
+            background: rgba(15,23,42,0.95);
+            box-shadow: 0 0 0 3px rgba(129,140,248,0.2), 0 0 16px rgba(99,102,241,0.2);
         }
 
         /* ── Filter dropdown ────────────────────────────────────────────── */
         .filter-select {
             height: 46px; border-radius: 12px;
-            border: 1.5px solid #e0e7ff; background: #f8faff;
-            color: #475569; font-family: 'JetBrains Mono', monospace;
+            border: 1.5px solid rgba(99,102,241,0.3); background: rgba(15,23,42,0.8);
+            color: #94a3b8; font-family: 'JetBrains Mono', monospace;
             font-size: 11px; font-weight: 700; cursor: pointer;
             padding: 0 32px 0 14px; outline: none;
             appearance: none; -webkit-appearance: none;
@@ -100,108 +104,114 @@
             background-repeat: no-repeat; background-position: right 10px center; background-size: 13px;
             min-width: 148px; transition: all 0.2s;
         }
-        .filter-select:focus { border-color: #818cf8; box-shadow: 0 0 0 4px rgba(129,140,248,0.15); background-color: #fff; color: #1e293b; }
-        .filter-select option { background: #fff; color: #1e293b; }
+        .filter-select:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.2); background: rgba(15,23,42,0.95); color: #e2e8f0; }
+        .filter-select option { background: #0f172a; color: #e2e8f0; }
 
         /* ── Buttons ────────────────────────────────────────────────────── */
         .btn-sync {
             display: inline-flex; align-items: center; gap: 8px;
-            border-radius: 12px; background: linear-gradient(135deg,#6366f1,#818cf8);
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1, #a855f7, #6366f1);
+            background-size: 200% auto;
             padding: 11px 22px; font-size: 13px; font-weight: 700; color: #fff;
-            box-shadow: 0 4px 16px rgba(99,102,241,0.3); transition: all 0.22s;
-            border: none; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;
+            box-shadow: 0 0 15px rgba(99,102,241,0.5), 0 4px 16px rgba(99,102,241,0.3);
+            transition: all 0.3s; border: none; cursor: pointer;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
-        .btn-sync:hover { box-shadow: 0 8px 24px rgba(99,102,241,0.40); transform: translateY(-1px); }
+        .btn-sync:hover { background-position: right center; box-shadow: 0 0 25px rgba(99,102,241,0.7), 0 8px 24px rgba(99,102,241,0.4); transform: scale(1.05); }
         .btn-sync:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
         .btn-analyze {
             display: inline-flex; align-items: center; gap: 5px;
-            border-radius: 999px; border: 1.5px solid #c7d2fe;
-            background: #eef2ff; padding: 5px 13px;
-            font-size: 11px; font-weight: 700; color: #4338ca;
+            border-radius: 999px; border: 1px solid rgba(99,102,241,0.4);
+            background: rgba(99,102,241,0.1); padding: 5px 13px;
+            font-size: 11px; font-weight: 700; color: #818cf8;
             white-space: nowrap; cursor: pointer;
             font-family: 'JetBrains Mono', monospace;
-            box-shadow: 0 2px 8px rgba(99,102,241,0.10);
+            box-shadow: 0 2px 8px rgba(99,102,241,0.1);
             transition: all 0.2s;
         }
-        .btn-analyze:hover { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 4px 16px rgba(99,102,241,0.30); }
+        .btn-analyze:hover { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 0 12px rgba(99,102,241,0.5); }
         .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
 
         /* ── Table ──────────────────────────────────────────────────────── */
-        thead th { background: #f8faff !important; }
-        tbody tr { transition: background 0.14s; border-bottom: 1px solid #f1f5f9; }
-        tbody tr:hover td { background: #f5f3ff; }
+        thead th { background: rgba(15,23,42,0.9) !important; color: #64748b !important; }
+        tbody { background: transparent; }
+        tbody tr { transition: background 0.15s, box-shadow 0.15s; border-bottom: 1px solid rgba(99,102,241,0.08); }
+        tbody tr:hover td { background: rgba(99,102,241,0.07); }
         tbody tr:last-child { border-bottom: none; }
 
         /* ── Modal ──────────────────────────────────────────────────────── */
         .modal-overlay {
             position: fixed; inset: 0; z-index: 50;
             display: flex; align-items: center; justify-content: center;
-            background: rgba(30,41,59,0.45); padding: 16px; backdrop-filter: blur(6px);
+            background: rgba(0,0,0,0.75); padding: 16px; backdrop-filter: blur(10px);
         }
         .modal-box {
             width: 100%; max-width: 560px;
-            border-radius: 24px; border: 1px solid #e0e7ff;
-            background: #fff;
-            box-shadow: 0 32px 80px rgba(99,102,241,0.18);
+            border-radius: 24px; border: 1px solid rgba(99,102,241,0.3);
+            background: rgba(11,16,30,0.95);
+            box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,102,241,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
             animation: slideUp 0.25s ease both;
+            backdrop-filter: blur(16px);
         }
 
         /* ── Toast ──────────────────────────────────────────────────────── */
         .toast {
             position: fixed; bottom: 24px; right: 24px; z-index: 60;
             display: flex; align-items: center; gap: 12px;
-            border-radius: 14px; border: 1px solid #fecdd3; background: #fff1f2;
+            border-radius: 14px; border: 1px solid rgba(248,113,113,0.3); background: rgba(190,18,60,0.15);
             padding: 13px 20px;
-            box-shadow: 0 12px 40px rgba(190,18,60,0.12);
+            box-shadow: 0 12px 40px rgba(190,18,60,0.25), 0 0 0 1px rgba(248,113,113,0.1);
             animation: slideUp 0.25s ease both;
+            backdrop-filter: blur(12px);
         }
 
         /* ── Scrollbar ──────────────────────────────────────────────────── */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f8faff; }
-        ::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #818cf8; }
+        ::-webkit-scrollbar-track { background: rgba(15,23,42,0.5); }
+        ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.4); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
 
         /* ── Query display ──────────────────────────────────────────────── */
         .query-display {
-            background: #f8faff; border: 1px solid #e0e7ff;
+            background: rgba(0,0,0,0.4); border: 1px solid rgba(99,102,241,0.25);
             border-radius: 10px; padding: 8px 14px;
             font-family: 'JetBrains Mono', monospace; font-size: 11px;
-            color: #94a3b8; min-width: 240px;
+            color: #22d3ee; min-width: 240px;
         }
         /* ── Terminal Console ───────────────────────────────────────────── */
         .term-overlay {
             position: fixed; inset: 0; z-index: 60;
             display: flex; align-items: center; justify-content: center;
-            background: rgba(15,23,42,0.85); backdrop-filter: blur(8px);
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
         }
         .term-box {
             width: 100%; max-width: 650px;
-            background: #060b14; border: 1px solid #1e2d45; border-radius: 12px;
-            box-shadow: 0 40px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(34,211,238,0.1);
+            background: #000000; border: 1px solid rgba(34,197,94,0.3); border-radius: 12px;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.8), 0 0 40px rgba(34,197,94,0.1), 0 0 0 1px rgba(34,197,94,0.15);
             animation: slideUp 0.3s ease both; overflow: hidden;
         }
         .term-header {
-            background: #0d1117; border-bottom: 1px solid #1e2d45;
+            background: #0a0a0a; border-bottom: 1px solid rgba(34,197,94,0.2);
             padding: 8px 16px; display: flex; align-items: center; gap: 8px;
         }
         .term-body {
             padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 13px;
-            color: #22c55e; min-height: 220px;
+            color: #22c55e; min-height: 220px; text-shadow: 0 0 8px rgba(34,197,94,0.5);
         }
         .term-line { display: block; margin-bottom: 8px; }
         .term-cursor::after { content: '█'; animation: blink 1s step-end infinite; }
     </style>
 </head>
-<body class="min-h-screen antialiased">
+<body class="min-h-screen antialiased" style="background:#0B101E;">
 
 <!-- ── Background ─────────────────────────────────────────────────────────── -->
 <div style="position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;">
-    <div class="blob-1" style="position:absolute;left:-60px;top:-40px;width:420px;height:420px;border-radius:50%;background:rgba(165,180,252,0.25);filter:blur(90px);"></div>
-    <div class="blob-2" style="position:absolute;right:-80px;top:40px;width:460px;height:460px;border-radius:50%;background:rgba(196,181,253,0.20);filter:blur(110px);"></div>
-    <div class="blob-1" style="position:absolute;bottom:-40px;left:35%;width:380px;height:380px;border-radius:50%;background:rgba(186,230,253,0.25);filter:blur(100px);"></div>
-    <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(165,180,252,0.08) 1px,transparent 1px),linear-gradient(90deg,rgba(165,180,252,0.08) 1px,transparent 1px);background-size:52px 52px;"></div>
+    <div class="blob-1" style="position:absolute;left:-60px;top:-40px;width:420px;height:420px;border-radius:50%;background:rgba(99,102,241,0.12);filter:blur(100px);"></div>
+    <div class="blob-2" style="position:absolute;right:-80px;top:40px;width:460px;height:460px;border-radius:50%;background:rgba(34,211,238,0.07);filter:blur(120px);"></div>
+    <div class="blob-1" style="position:absolute;bottom:-40px;left:35%;width:380px;height:380px;border-radius:50%;background:rgba(168,85,247,0.08);filter:blur(110px);"></div>
+    <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(99,102,241,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.05) 1px,transparent 1px);background-size:52px 52px;"></div>
 </div>
 
 <main style="position:relative;z-index:10;" class="mx-auto w-full max-w-screen-xl px-4 py-6 sm:px-6 lg:px-8">
@@ -212,22 +222,22 @@
 
             <div class="flex items-center gap-4">
                 <!-- Shield logo -->
-                <div style="width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 6px 20px rgba(99,102,241,0.35);">
+                <div style="width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 6px 20px rgba(99,102,241,0.5),0 0 0 1px rgba(99,102,241,0.3);">
                     <svg style="width:28px;height:28px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
                     </svg>
                 </div>
                 <div>
                     <p class="text-xs font-bold uppercase tracking-widest mono" style="color:#6366f1;">AEGIS — Offline Cyber Defense Console</p>
-                    <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-                        SOC Log Analyst <span class="mono text-base font-bold" style="color:#94a3b8;">v1.0</span>
+                    <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl" style="color:#e2e8f0;">
+                        SOC Log Analyst <span class="mono text-base font-bold" style="color:#6366f1;">v1.0</span>
                     </h1>
-                    <p class="mt-1 text-sm text-slate-500">Air-gapped forensic triage · SQLite FTS5 · Local AI inference</p>
+                    <p class="mt-1 text-sm" style="color:#64748b;">Air-gapped forensic triage · SQLite FTS5 · Local AI inference</p>
                 </div>
             </div>
 
             <div class="flex items-center gap-3 flex-wrap">
-                <span class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold mono uppercase tracking-widest" style="background:#f0fdf4;border:1.5px solid #86efac;color:#16a34a;">
+                <span class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold mono uppercase tracking-widest" style="background:rgba(34,197,94,0.1);border:1.5px solid rgba(34,197,94,0.3);color:#4ade80;">
                     <svg style="width:10px;height:10px;" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
                     AIR-GAPPED
                 </span>
@@ -248,82 +258,82 @@
     <div class="grid gap-4 mb-6" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">
 
         <!-- Total Indexed Events -->
-        <div class="telem-card p-5">
+        <div class="telem-card p-5" style="border-top-color:#22d3ee;">
             <div class="scan"></div>
-            <div class="accent-bar rounded-full mb-4" style="background:linear-gradient(90deg,#6366f1,#a5b4fc);"></div>
-            <p class="text-xs font-bold uppercase tracking-widest mono mb-2" style="color:#94a3b8;">// INDEXED EVENTS</p>
-            <p id="telem-total" class="text-4xl font-extrabold mono" style="color:#4338ca;letter-spacing:-1px;">—</p>
-            <p class="text-xs mono mt-1" style="color:#94a3b8;">ENTRIES IN FTS5 INDEX</p>
-            <div class="mt-3 h-1.5 rounded-full" style="background:#e0e7ff;">
-                <div class="h-1.5 rounded-full" style="width:72%;background:linear-gradient(90deg,#6366f1,#a5b4fc);"></div>
+            <div class="accent-bar rounded-full mb-4" style="background:linear-gradient(90deg,#22d3ee,#6366f1);"></div>
+            <p class="text-xs font-bold uppercase tracking-widest mono mb-2" style="color:#64748b;">// INDEXED EVENTS</p>
+            <p id="telem-total" class="text-4xl font-extrabold mono" style="color:#22d3ee;letter-spacing:-1px;text-shadow:0 0 16px rgba(34,211,238,0.5);">—</p>
+            <p class="text-xs mono mt-1" style="color:#475569;">ENTRIES IN FTS5 INDEX</p>
+            <div class="mt-3 h-1.5 rounded-full" style="background:rgba(34,211,238,0.1);">
+                <div class="h-1.5 rounded-full" style="width:72%;background:linear-gradient(90deg,#22d3ee,#6366f1);"></div>
             </div>
         </div>
 
         <!-- Query Latency -->
-        <div class="telem-card p-5">
+        <div class="telem-card p-5" style="border-top-color:#4ade80;">
             <div class="scan" style="animation-delay:0.8s"></div>
-            <div class="accent-bar rounded-full mb-4" style="background:linear-gradient(90deg,#22c55e,#86efac);"></div>
-            <p class="text-xs font-bold uppercase tracking-widest mono mb-2" style="color:#94a3b8;">// QUERY LATENCY</p>
+            <div class="accent-bar rounded-full mb-4" style="background:linear-gradient(90deg,#4ade80,#22d3ee);"></div>
+            <p class="text-xs font-bold uppercase tracking-widest mono mb-2" style="color:#64748b;">// QUERY LATENCY</p>
             <div class="flex items-end gap-1">
-                <p id="telem-latency" class="text-4xl font-extrabold mono" style="color:#16a34a;letter-spacing:-1px;">—</p>
-                <span class="text-sm mono mb-1" style="color:#22c55e;">ms</span>
+                <p id="telem-latency" class="text-4xl font-extrabold mono" style="color:#4ade80;letter-spacing:-1px;text-shadow:0 0 16px rgba(74,222,128,0.5);">—</p>
+                <span class="text-sm mono mb-1" style="color:#4ade80;">ms</span>
             </div>
-            <p class="text-xs mono mt-1" style="color:#94a3b8;">LAST FTS5 EXECUTION TIME</p>
-            <div class="mt-3 h-1.5 rounded-full" style="background:#dcfce7;">
-                <div id="latency-bar" class="h-1.5 rounded-full transition-all duration-700" style="width:5%;background:linear-gradient(90deg,#22c55e,#86efac);"></div>
+            <p class="text-xs mono mt-1" style="color:#475569;">LAST FTS5 EXECUTION TIME</p>
+            <div class="mt-3 h-1.5 rounded-full" style="background:rgba(74,222,128,0.1);">
+                <div id="latency-bar" class="h-1.5 rounded-full transition-all duration-700" style="width:5%;background:linear-gradient(90deg,#4ade80,#22d3ee);"></div>
             </div>
         </div>
 
         <!-- AI Engine Status -->
-        <div class="telem-card p-5">
+        <div class="telem-card p-5" style="border-top-color:#a78bfa;">
             <div class="scan" style="animation-delay:1.4s"></div>
-            <div class="accent-bar rounded-full mb-4" style="background:linear-gradient(90deg,#06b6d4,#67e8f9);"></div>
-            <p class="text-xs font-bold uppercase tracking-widest mono mb-2" style="color:#94a3b8;">// AI ENGINE STATUS</p>
+            <div class="accent-bar rounded-full mb-4" style="background:linear-gradient(90deg,#a78bfa,#22d3ee);"></div>
+            <p class="text-xs font-bold uppercase tracking-widest mono mb-2" style="color:#64748b;">// AI ENGINE STATUS</p>
             <div class="flex items-center gap-2 mt-1">
                 <span class="relative flex h-3 w-3">
-                    <span class="ping-dot absolute inline-flex h-full w-full rounded-full opacity-40" style="background:#22c55e;"></span>
-                    <span class="relative inline-flex h-3 w-3 rounded-full" style="background:#22c55e;"></span>
+                    <span class="ping-dot absolute inline-flex h-full w-full rounded-full opacity-40" style="background:#4ade80;"></span>
+                    <span class="relative inline-flex h-3 w-3 rounded-full" style="background:#4ade80;"></span>
                 </span>
-                <p class="text-base font-extrabold mono" style="color:#0891b2;">[ ONLINE ]</p>
+                <p class="text-base font-extrabold mono" style="color:#a78bfa;text-shadow:0 0 12px rgba(167,139,250,0.5);">[ ONLINE ]</p>
             </div>
-            <p class="text-xs mono mt-2" style="color:#0891b2;">AEGIS-LLAMA3-8B-QUANTIZED</p>
-            <p class="text-xs mono mt-1" style="color:#94a3b8;">HEURISTIC EXPERT SYSTEM ACTIVE</p>
+            <p class="text-xs mono mt-2" style="color:#a78bfa;">AEGIS-LLAMA3-8B-QUANTIZED</p>
+            <p class="text-xs mono mt-1" style="color:#475569;">HEURISTIC EXPERT SYSTEM ACTIVE</p>
         </div>
 
         <!-- Active DB Pool -->
-        <div class="telem-card p-5">
+        <div class="telem-card p-5" style="border-top-color:#fbbf24;">
             <div class="scan" style="animation-delay:2s"></div>
-            <div class="accent-bar rounded-full mb-4" style="background:linear-gradient(90deg,#f59e0b,#fde68a);"></div>
-            <p class="text-xs font-bold uppercase tracking-widest mono mb-2" style="color:#94a3b8;">// ACTIVE DB POOL</p>
-            <p class="text-sm font-bold mono" style="color:#b45309;">SQLITE FTS5</p>
-            <p class="text-xs mono mt-1" style="color:#d97706;">IN-MEMORY CACHE LAYER</p>
+            <div class="accent-bar rounded-full mb-4" style="background:linear-gradient(90deg,#fbbf24,#f97316);"></div>
+            <p class="text-xs font-bold uppercase tracking-widest mono mb-2" style="color:#64748b;">// ACTIVE DB POOL</p>
+            <p class="text-sm font-bold mono" style="color:#fbbf24;text-shadow:0 0 10px rgba(251,191,36,0.4);">SQLITE FTS5</p>
+            <p class="text-xs mono mt-1" style="color:#f97316;">IN-MEMORY CACHE LAYER</p>
             <div class="flex items-end gap-1 mt-3">
                 <div class="w-2 h-4 rounded-sm" style="background:#fbbf24;opacity:0.9;"></div>
                 <div class="w-2 h-3 rounded-sm" style="background:#fbbf24;opacity:0.6;"></div>
                 <div class="w-2 h-5 rounded-sm" style="background:#fbbf24;opacity:0.85;"></div>
                 <div class="w-2 h-2 rounded-sm" style="background:#fbbf24;opacity:0.5;"></div>
                 <div class="w-2 h-4 rounded-sm" style="background:#fbbf24;opacity:0.75;"></div>
-                <span class="text-xs mono ml-2" style="color:#94a3b8;">HEALTHY</span>
+                <span class="text-xs mono ml-2" style="color:#64748b;">HEALTHY</span>
             </div>
         </div>
 
         <!-- Threat Mix -->
-        <div class="telem-card p-5">
+        <div class="telem-card p-5" style="border-top-color:#f87171;">
             <div class="scan" style="animation-delay:2.6s"></div>
-            <div class="accent-bar rounded-full mb-4" style="background:linear-gradient(90deg,#f43f5e,#fb7185);"></div>
-            <p class="text-xs font-bold uppercase tracking-widest mono mb-3" style="color:#94a3b8;">// THREAT MIX</p>
+            <div class="accent-bar rounded-full mb-4" style="background:linear-gradient(90deg,#f87171,#f97316);"></div>
+            <p class="text-xs font-bold uppercase tracking-widest mono mb-3" style="color:#64748b;">// THREAT MIX</p>
             <div class="space-y-2">
                 <div class="flex justify-between text-xs mono">
-                    <span style="color:#be123c;">CRITICAL/ERR</span>
-                    <span id="telem-crit" class="font-bold" style="color:#be123c;">—</span>
+                    <span style="color:#f87171;">CRITICAL/ERR</span>
+                    <span id="telem-crit" class="font-bold" style="color:#f87171;">—</span>
                 </div>
                 <div class="flex justify-between text-xs mono">
-                    <span style="color:#b45309;">WARNING</span>
-                    <span id="telem-warn" class="font-bold" style="color:#b45309;">—</span>
+                    <span style="color:#fbbf24;">WARNING</span>
+                    <span id="telem-warn" class="font-bold" style="color:#fbbf24;">—</span>
                 </div>
                 <div class="flex justify-between text-xs mono">
-                    <span style="color:#0369a1;">INFO</span>
-                    <span id="telem-info" class="font-bold" style="color:#0369a1;">—</span>
+                    <span style="color:#22d3ee;">INFO</span>
+                    <span id="telem-info" class="font-bold" style="color:#22d3ee;">—</span>
                 </div>
             </div>
         </div>
@@ -335,7 +345,7 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
             <div>
                 <p class="text-xs font-bold uppercase tracking-widest mono" style="color:#6366f1;">// QUERY INTERFACE</p>
-                <h2 class="mt-1 text-xl font-bold tracking-tight text-slate-800">Advanced FTS5 Search Engine</h2>
+                <h2 class="mt-1 text-xl font-bold tracking-tight" style="color:#e2e8f0;">Advanced FTS5 Search Engine</h2>
             </div>
             <div id="query-display" class="query-display">&gt; SELECT * FROM logs LIMIT 200</div>
         </div>
@@ -358,14 +368,14 @@
                 <input id="search-input" type="text"
                     placeholder="Search — try: Error, Kernel, Security, metasploit..."
                     class="w-full bg-transparent text-sm font-medium outline-none mono"
-                    style="color:#1e293b;caret-color:#6366f1;"
-                    placeholder-style="color:#94a3b8;">
+                    style="color:#e2e8f0;caret-color:#6366f1;"
+                    placeholder-style="color:#64748b;">
                 <button id="clear-search" onclick="clearSearch()" style="display:none;color:#94a3b8;" class="hover:text-slate-600 text-lg leading-none flex-shrink-0">✕</button>
             </div>
 
             <!-- Force Sync -->
-            <button id="force-sync-btn" onclick="forceSync()" class="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition-all hover:bg-slate-800" style="box-shadow: 0 0 0 1px rgba(99,102,241,0.4), 0 4px 16px rgba(99,102,241,0.2);">
-                <span class="text-indigo-400">⚡</span>
+            <button id="force-sync-btn" onclick="forceSync()" class="flex-shrink-0 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white transition-all hover:scale-105" style="background:linear-gradient(135deg,#6366f1,#a855f7,#6366f1);background-size:200% auto;box-shadow:0 0 15px rgba(99,102,241,0.5),0 4px 16px rgba(99,102,241,0.3);">
+                <span style="color:#e0c8ff;">⚡</span>
                 <span style="font-family: 'Plus Jakarta Sans', sans-serif;">Force Telemetry Sync</span>
             </button>
         </div>
@@ -374,13 +384,13 @@
     <!-- ══════════ EVENT FEED TABLE ══════════════════════════════════════════ -->
     <div class="panel mb-10">
         <!-- Table header -->
-        <div class="flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8" style="background:#f8faff;border-bottom:1px solid #e0e7ff;">
+        <div class="flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8" style="background:rgba(15,23,42,0.8);border-bottom:1px solid rgba(99,102,241,0.15);">
             <div class="flex items-center gap-3 flex-wrap">
                 <div>
-                    <p class="text-xs font-bold uppercase tracking-widest mono" style="color:#94a3b8;">// SECURITY STREAM</p>
-                    <h2 class="mt-0.5 text-lg font-bold tracking-tight text-slate-800">Live Event Feed</h2>
+                    <p class="text-xs font-bold uppercase tracking-widest mono" style="color:#64748b;">// SECURITY STREAM</p>
+                    <h2 class="mt-0.5 text-lg font-bold tracking-tight" style="color:#e2e8f0;">Live Event Feed</h2>
                 </div>
-                <span id="event-count" class="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-bold mono" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;">
+                <span id="event-count" class="inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-bold mono" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#818cf8;">
                     — EVENTS
                 </span>
                 <!-- Live stream active badge -->
@@ -398,19 +408,19 @@
         <div class="overflow-x-auto">
             <table class="w-full border-collapse text-sm">
                 <thead>
-                    <tr style="border-bottom:1px solid #e0e7ff;">
-                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono whitespace-nowrap" style="color:#94a3b8;">Timestamp</th>
-                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono" style="color:#94a3b8;">Severity</th>
-                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono whitespace-nowrap" style="color:#94a3b8;">Source</th>
-                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono" style="color:#94a3b8;">Event Type</th>
-                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono" style="color:#94a3b8;">Message</th>
-                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono whitespace-nowrap" style="color:#94a3b8;">AEGIS AI</th>
+                    <tr style="border-bottom:1px solid rgba(99,102,241,0.15);">
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono whitespace-nowrap" style="color:#64748b;">Timestamp</th>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono" style="color:#64748b;">Severity</th>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono whitespace-nowrap" style="color:#64748b;">Source</th>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono" style="color:#64748b;">Event Type</th>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono" style="color:#64748b;">Message</th>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest mono whitespace-nowrap" style="color:#64748b;">AEGIS AI</th>
                     </tr>
                 </thead>
-                <tbody id="log-table-body" style="background:#fff;">
-                    <tr><td colspan="6" class="px-6 py-20 text-center mono text-sm" style="color:#94a3b8;">
+                <tbody id="log-table-body" style="background:rgba(11,16,30,0.5);">
+                    <tr><td colspan="6" class="px-6 py-20 text-center mono text-sm" style="color:#475569;">
                         <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-                            <div class="spin" style="width:26px;height:26px;border:2.5px solid #e0e7ff;border-top-color:#6366f1;border-radius:50%;"></div>
+                            <div class="spin" style="width:26px;height:26px;border:2.5px solid rgba(99,102,241,0.2);border-top-color:#6366f1;border-radius:50%;"></div>
                             <span>Loading event feed...</span>
                         </div>
                     </td></tr>
@@ -427,24 +437,24 @@
 <div id="ai-modal" class="modal-overlay" style="display:none;" onclick="closeModal()">
     <div class="modal-box" onclick="event.stopPropagation()">
         <!-- Header -->
-        <div class="px-7 py-5" style="border-bottom:1px solid #e0e7ff;background:linear-gradient(135deg,#f8faff,#eef2ff);">
+        <div class="px-7 py-5" style="border-bottom:1px solid rgba(99,102,241,0.2);background:linear-gradient(135deg,rgba(15,23,42,0.9),rgba(30,27,75,0.9));">
             <p class="text-xs font-bold uppercase tracking-widest mono" style="color:#6366f1;">// AEGIS AI ENGINE — THREAT ANALYSIS REPORT</p>
-            <h3 class="mt-2 text-xl font-extrabold tracking-tight text-slate-800">Forensic Intelligence Output</h3>
-            <p id="modal-model" class="mt-1 mono text-xs" style="color:#94a3b8;"></p>
+            <h3 class="mt-2 text-xl font-extrabold tracking-tight" style="color:#e2e8f0;">Forensic Intelligence Output</h3>
+            <p id="modal-model" class="mt-1 mono text-xs" style="color:#64748b;"></p>
         </div>
         <!-- Threat Level Banner -->
-        <div id="modal-banner" class="px-7 py-3 flex items-center gap-3" style="background:#fff1f2;border-bottom:1px solid #fecdd3;">
-            <span class="text-xs font-bold uppercase tracking-widest mono" style="color:#94a3b8;">THREAT LEVEL:</span>
-            <span id="modal-threat" class="text-lg font-extrabold mono" style="color:#be123c;"></span>
+        <div id="modal-banner" class="px-7 py-3 flex items-center gap-3" style="background:rgba(190,18,60,0.1);border-bottom:1px solid rgba(248,113,113,0.2);">
+            <span class="text-xs font-bold uppercase tracking-widest mono" style="color:#64748b;">THREAT LEVEL:</span>
+            <span id="modal-threat" class="text-lg font-extrabold mono" style="color:#f87171;"></span>
         </div>
         <!-- Body -->
         <div class="px-7 py-6">
-            <p class="text-xs font-bold uppercase tracking-widest mono mb-3" style="color:#94a3b8;">// RECOMMENDED IR ACTION</p>
-            <p id="modal-analysis" class="text-sm leading-7 text-slate-600"></p>
+            <p class="text-xs font-bold uppercase tracking-widest mono mb-3" style="color:#64748b;">// RECOMMENDED IR ACTION</p>
+            <p id="modal-analysis" class="text-sm leading-7" style="color:#94a3b8;"></p>
         </div>
         <!-- Footer -->
-        <div class="px-7 py-4 flex justify-end" style="border-top:1px solid #f1f5f9;background:#f8faff;">
-            <button onclick="closeModal()" class="mono text-sm font-bold px-6 py-2.5 rounded-full transition-all hover:opacity-80" style="background:#eef2ff;border:1.5px solid #c7d2fe;color:#4338ca;">
+        <div class="px-7 py-4 flex justify-end" style="border-top:1px solid rgba(99,102,241,0.15);background:rgba(15,23,42,0.5);">
+            <button onclick="closeModal()" class="mono text-sm font-bold px-6 py-2.5 rounded-full transition-all hover:opacity-80" style="background:rgba(99,102,241,0.15);border:1.5px solid rgba(99,102,241,0.4);color:#818cf8;">
                 [ DISMISS ]
             </button>
         </div>
@@ -458,11 +468,11 @@
     <div class="term-box" onclick="event.stopPropagation()">
         <div class="term-header">
             <div class="flex gap-2">
-                <div class="w-3 h-3 rounded-full bg-slate-700"></div>
-                <div class="w-3 h-3 rounded-full bg-slate-700"></div>
-                <div class="w-3 h-3 rounded-full bg-slate-700"></div>
+                <div class="w-3 h-3 rounded-full" style="background:#ff5f57;"></div>
+                <div class="w-3 h-3 rounded-full" style="background:#febc2e;"></div>
+                <div class="w-3 h-3 rounded-full" style="background:#28c840;"></div>
             </div>
-            <span class="text-xs font-bold uppercase tracking-widest mono text-slate-500 ml-4">AEGIS CLI — /bin/sh</span>
+            <span class="text-xs font-bold uppercase tracking-widest mono ml-4" style="color:rgba(34,197,94,0.6);">AEGIS CLI — /bin/sh</span>
         </div>
         <div class="term-body" id="term-output">
             <!-- Terminal text gets injected here -->
@@ -474,11 +484,11 @@
      ERROR TOAST
 ══════════════════════════════════════════════════════════════════════════ -->
 <div id="toast" class="toast" style="display:none;">
-    <svg class="h-5 w-5 flex-shrink-0" style="color:#be123c;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <svg class="h-5 w-5 flex-shrink-0" style="color:#f87171;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/>
     </svg>
-    <p id="toast-msg" class="text-sm font-semibold mono" style="color:#be123c;"></p>
-    <button onclick="hideToast()" class="ml-2 text-lg" style="color:#fda4af;">✕</button>
+    <p id="toast-msg" class="text-sm font-semibold mono" style="color:#fca5a5;"></p>
+    <button onclick="hideToast()" class="ml-2 text-lg" style="color:#f87171;">✕</button>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════
@@ -521,9 +531,9 @@ function setStatus(state) {
     const label = document.getElementById("status-label");
     const dot   = document.getElementById("status-dot");
     const styles = {
-        online:  { bg:"#f0fdf4", border:"#86efac", color:"#16a34a", dot:"#22c55e" },
-        offline: { bg:"#fff1f2", border:"#fda4af", color:"#be123c", dot:"#f43f5e" },
-        loading: { bg:"#fffbeb", border:"#fde68a", color:"#b45309", dot:"#f59e0b" }
+        online:  { bg:"rgba(34,197,94,0.1)",  border:"rgba(74,222,128,0.4)",  color:"#4ade80", dot:"#4ade80" },
+        offline: { bg:"rgba(239,68,68,0.1)",  border:"rgba(248,113,113,0.4)", color:"#f87171", dot:"#f87171" },
+        loading: { bg:"rgba(251,191,36,0.1)", border:"rgba(251,191,36,0.4)",  color:"#fbbf24", dot:"#fbbf24" }
     };
     const s = styles[state] || styles.loading;
     pill.style.cssText = `background:${s.bg};border:1.5px solid ${s.border};color:${s.color};display:inline-flex;align-items:center;gap:12px;border-radius:999px;padding:8px 16px;font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;`;
@@ -623,7 +633,7 @@ async function fetchLogs(search) {
         updateTelemetry([], performance.now() - t0, {});
         setStatus("offline");
         document.getElementById("log-table-body").innerHTML = `
-            <tr><td colspan="6" class="px-6 py-16 text-center mono text-sm font-semibold" style="background:#fff1f2;color:#be123c;">
+            <tr><td colspan="6" class="px-6 py-16 text-center mono text-sm font-semibold" style="background:rgba(190,18,60,0.08);color:#f87171;">
                 ⚠ Backend unreachable — ensure FastAPI is running on port 8000
             </td></tr>`;
         document.getElementById("sync-status").textContent = "Backend offline – retry when the API is running.";
@@ -694,9 +704,9 @@ function renderTable(logs, query, filter) {
     if (!logs.length) {
         const msg = query ? `No anomalies detected for "${query}" [${(filter||"all").toUpperCase()}]` : "No events returned by the local analyst API.";
         tbody.innerHTML = `
-            <tr><td colspan="6" class="px-6 py-20 text-center mono text-sm" style="color:#94a3b8;">
+            <tr><td colspan="6" class="px-6 py-20 text-center mono text-sm" style="color:#475569;">
                 <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-                    <svg style="width:36px;height:36px;color:#e0e7ff;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <svg style="width:36px;height:36px;color:rgba(99,102,241,0.3);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <span>${msg}</span>
@@ -711,8 +721,8 @@ function renderTable(logs, query, filter) {
         const src   = log.source_ip || "";
         const isLive = src === "LIVE_STREAM";
         const srcHtml = isLive
-            ? `<span style="display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;background:#f0fdf4;border:1px solid #86efac;color:#16a34a;"><span style="width:5px;height:5px;border-radius:50%;background:#22c55e;"></span>LIVE</span>`
-            : `<span class="mono" style="color:#94a3b8;font-size:11px;">${escapeHtml(src)}</span>`;
+            ? `<span style="display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;background:rgba(34,197,94,0.1);border:1px solid rgba(74,222,128,0.3);color:#4ade80;"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80;"></span>LIVE</span>`
+            : `<span class="mono" style="color:#64748b;font-size:11px;">${escapeHtml(src)}</span>`;
 
         return `
         <tr class="fade-in">
@@ -721,8 +731,8 @@ function renderTable(logs, query, filter) {
                 <span class="${badgeClass(log.severity)}">${sev}</span>
             </td>
             <td class="px-5 py-3.5 whitespace-nowrap">${srcHtml}</td>
-            <td class="px-5 py-3.5 mono text-xs max-w-[160px] truncate" style="color:#64748b;" title="${escapeHtml(log.event_type||"")}">${escapeHtml(log.event_type||"")}</td>
-            <td class="px-5 py-3.5 text-xs max-w-sm text-slate-600" style="line-height:1.75;">${escapeHtml(log.message||"")}</td>
+            <td class="px-5 py-3.5 mono text-xs max-w-[160px] truncate" style="color:#6366f1;" title="${escapeHtml(log.event_type||"")}">${escapeHtml(log.event_type||"")}</td>
+            <td class="px-5 py-3.5 text-xs max-w-sm" style="color:#94a3b8;line-height:1.75;">${escapeHtml(log.message||"")}</td>
             <td class="px-5 py-3.5">
                 <button class="btn-analyze" id="analyze-btn-${rowId}"
                     onclick="analyzeLog(${JSON.stringify(log).replace(/"/g,'&quot;')}, '${rowId}')">
