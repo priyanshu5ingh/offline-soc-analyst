@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -373,11 +374,19 @@
                 <button id="clear-search" onclick="clearSearch()" style="display:none;color:#94a3b8;" class="hover:text-slate-600 text-lg leading-none flex-shrink-0">✕</button>
             </div>
 
-            <!-- Force Sync -->
-            <button id="force-sync-btn" onclick="forceSync()" class="flex-shrink-0 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white transition-all hover:scale-105" style="background:linear-gradient(135deg,#6366f1,#a855f7,#6366f1);background-size:200% auto;box-shadow:0 0 15px rgba(99,102,241,0.5),0 4px 16px rgba(99,102,241,0.3);">
-                <span style="color:#e0c8ff;">⚡</span>
-                <span style="font-family: 'Plus Jakarta Sans', sans-serif;">Force Telemetry Sync</span>
-            </button>
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-3">
+                <!-- Fresh Capture -->
+                <button id="fresh-capture-btn" onclick="freshCapture()" class="flex-shrink-0 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white transition-all hover:scale-105" style="background:linear-gradient(135deg,#be123c,#f43f5e,#be123c);background-size:200% auto;box-shadow:0 0 15px rgba(239,68,68,0.5),0 4px 16px rgba(239,68,68,0.3);">
+                    <span>🔴</span>
+                    <span style="font-family: 'Plus Jakarta Sans', sans-serif;">Fresh Capture</span>
+                </button>
+                <!-- Generate AI PDF Report -->
+                <button id="report-btn" onclick="generateReport()" class="flex-shrink-0 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white transition-all hover:scale-105" style="background:linear-gradient(135deg,#7c3aed,#a855f7,#7c3aed);background-size:200% auto;box-shadow:0 0 15px rgba(168,85,247,0.5),0 4px 16px rgba(168,85,247,0.3);">
+                    <span>📄</span>
+                    <span style="font-family: 'Plus Jakarta Sans', sans-serif;">Generate AI PDF Report</span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -492,13 +501,89 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════
+     PDF REPORT TEMPLATE (hidden off-screen, rendered by html2pdf)
+══════════════════════════════════════════════════════════════════════════ -->
+<div id="pdf-report-template" style="position:absolute;left:-9999px;top:0;width:794px;font-family:'Plus Jakarta Sans',sans-serif;background:#fff;color:#1e293b;">
+    <!-- Cover Header -->
+    <div style="background:linear-gradient(135deg,#0f172a,#1e1b4b);padding:40px 48px 32px;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;">
+                <svg style="width:26px;height:26px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+                </svg>
+            </div>
+            <div>
+                <p style="font-size:10px;font-weight:700;letter-spacing:0.2em;color:#818cf8;text-transform:uppercase;">AEGIS — Offline Cyber Defense Console</p>
+                <h1 style="font-size:24px;font-weight:800;color:#fff;margin:4px 0 0;">Executive Threat Intelligence Report</h1>
+            </div>
+        </div>
+        <div style="display:flex;gap:24px;margin-top:8px;">
+            <span style="font-size:11px;color:#64748b;">Classification: <strong style="color:#94a3b8;">CONFIDENTIAL</strong></span>
+            <span style="font-size:11px;color:#64748b;">Generated: <strong id="pdf-date" style="color:#94a3b8;"></strong></span>
+            <span style="font-size:11px;color:#64748b;">Model: <strong style="color:#94a3b8;">AEGIS-Llama3-8B-Quantized</strong></span>
+        </div>
+    </div>
+
+    <!-- Risk Banner -->
+    <div id="pdf-risk-banner" style="padding:14px 48px;background:#7f1d1d;border-bottom:2px solid #ef4444;">
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.18em;color:#fca5a5;text-transform:uppercase;">Overall Risk Level: </span>
+        <span id="pdf-risk-level" style="font-size:14px;font-weight:800;color:#f87171;"></span>
+    </div>
+
+    <!-- Metrics Row -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#e2e8f0;border-bottom:1px solid #e2e8f0;">
+        <div style="background:#f8fafc;padding:20px 24px;text-align:center;">
+            <p style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:0.15em;text-transform:uppercase;margin:0;">Total Events</p>
+            <p id="pdf-total" style="font-size:32px;font-weight:800;color:#1e293b;margin:6px 0 0;"></p>
+        </div>
+        <div style="background:#f8fafc;padding:20px 24px;text-align:center;">
+            <p style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:0.15em;text-transform:uppercase;margin:0;">Critical / Error</p>
+            <p id="pdf-critical" style="font-size:32px;font-weight:800;color:#dc2626;margin:6px 0 0;"></p>
+        </div>
+        <div style="background:#f8fafc;padding:20px 24px;text-align:center;">
+            <p style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:0.15em;text-transform:uppercase;margin:0;">Warnings</p>
+            <p id="pdf-warning" style="font-size:32px;font-weight:800;color:#d97706;margin:6px 0 0;"></p>
+        </div>
+        <div style="background:#f8fafc;padding:20px 24px;text-align:center;">
+            <p style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:0.15em;text-transform:uppercase;margin:0;">Informational</p>
+            <p id="pdf-info" style="font-size:32px;font-weight:800;color:#0369a1;margin:6px 0 0;"></p>
+        </div>
+    </div>
+
+    <!-- AI Summary -->
+    <div style="padding:32px 48px;">
+        <p style="font-size:10px;font-weight:700;letter-spacing:0.18em;color:#6366f1;text-transform:uppercase;margin:0 0 10px;">// AI Threat Analysis</p>
+        <p id="pdf-summary" style="font-size:14px;line-height:1.8;color:#334155;margin:0;"></p>
+    </div>
+
+    <!-- Divider -->
+    <div style="height:1px;background:#e2e8f0;margin:0 48px;"></div>
+
+    <!-- Recommendation -->
+    <div style="padding:32px 48px;">
+        <p style="font-size:10px;font-weight:700;letter-spacing:0.18em;color:#7c3aed;text-transform:uppercase;margin:0 0 10px;">// Recommended IR Action</p>
+        <div style="background:#faf5ff;border-left:4px solid #7c3aed;border-radius:0 8px 8px 0;padding:16px 20px;">
+            <p id="pdf-recommendation" style="font-size:13px;line-height:1.8;color:#3b0764;margin:0;"></p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background:#f1f5f9;border-top:1px solid #e2e8f0;padding:16px 48px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:10px;color:#94a3b8;">AEGIS SOC Analyst — Air-gapped Forensic Platform</span>
+        <span style="font-size:10px;color:#94a3b8;">CONFIDENTIAL — NOT FOR DISTRIBUTION</span>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
      JAVASCRIPT ENGINE
 ══════════════════════════════════════════════════════════════════════════ -->
 <script>
-const API_BASE    = "http://127.0.0.1:8000";
-const API_LOGS    = `${API_BASE}/api/logs`;
-const API_ANALYZE = `${API_BASE}/api/analyze`;
-const API_SYNC    = `${API_BASE}/api/sync`;
+const API_BASE       = "http://127.0.0.1:8000";
+const API_LOGS       = `${API_BASE}/api/logs`;
+const API_ANALYZE    = `${API_BASE}/api/analyze`;
+const API_SYNC       = `${API_BASE}/api/sync`;
+const API_CAPTURE    = `${API_BASE}/api/capture_fresh`;
+const API_EXEC_SUM   = `${API_BASE}/api/executive_summary`;
 
 let allLogs      = [];
 let searchTimer  = null;
@@ -789,6 +874,92 @@ function showToast(msg) {
     toastTimer = setTimeout(hideToast, 6000);
 }
 function hideToast() { document.getElementById("toast").style.display = "none"; }
+
+// ── Fresh Capture ─────────────────────────────────────────────────────────
+async function freshCapture() {
+    const btn = document.getElementById("fresh-capture-btn");
+    if (btn) { btn.disabled = true; btn.innerHTML = `<div class="spin" style="width:12px;height:12px;border:2px solid rgba(239,68,68,0.3);border-top-color:#f87171;border-radius:50%;"></div> <span style="font-family:'Plus Jakarta Sans',sans-serif;">Purging old data...</span>`; }
+
+    const tbody = document.getElementById("log-table-body");
+    tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-20 text-center mono text-sm" style="color:#f87171;background:rgba(190,18,60,0.05);">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+            <div class="spin" style="width:26px;height:26px;border:2.5px solid rgba(239,68,68,0.2);border-top-color:#f87171;border-radius:50%;"></div>
+            <span>🔴 Purging old data &amp; initiating fresh capture...</span>
+        </div>
+    </td></tr>`;
+
+    try {
+        const res  = await fetch(API_CAPTURE, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.status === "success") {
+            showToast(`✅ ${data.message}`);
+        }
+        await fetchLogs();
+    } catch (err) {
+        console.error("Fresh capture failed:", err);
+        showToast("Fresh capture failed. Ensure the backend is running.");
+        await fetchLogs();
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = `<span>🔴</span><span style="font-family:'Plus Jakarta Sans',sans-serif;">Fresh Capture</span>`; }
+    }
+}
+
+// ── Generate AI PDF Report ────────────────────────────────────────────────
+async function generateReport() {
+    const btn = document.getElementById("report-btn");
+    if (btn) { btn.disabled = true; btn.innerHTML = `<div class="spin" style="width:12px;height:12px;border:2px solid rgba(168,85,247,0.3);border-top-color:#a855f7;border-radius:50%;"></div> <span style="font-family:'Plus Jakarta Sans',sans-serif;">Building report...</span>`; }
+
+    try {
+        const res  = await fetch(API_EXEC_SUM);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // Populate the hidden PDF template
+        const now = new Date();
+        document.getElementById("pdf-date").textContent           = now.toLocaleString("en-US", { dateStyle: "long", timeStyle: "medium" });
+        document.getElementById("pdf-total").textContent          = data.total_events;
+        document.getElementById("pdf-critical").textContent       = data.critical_count;
+        document.getElementById("pdf-warning").textContent        = data.warning_count;
+        document.getElementById("pdf-info").textContent           = data.info_count;
+        document.getElementById("pdf-risk-level").textContent     = data.risk_level;
+        document.getElementById("pdf-summary").textContent        = data.summary;
+        document.getElementById("pdf-recommendation").textContent = data.recommendation;
+
+        // Risk banner color
+        const bannerColors = {
+            CRITICAL: { bg: "#7f1d1d", border: "#ef4444", text: "#fca5a5" },
+            HIGH:     { bg: "#7c2d12", border: "#f97316", text: "#fdba74" },
+            MEDIUM:   { bg: "#713f12", border: "#eab308", text: "#fde68a" },
+            LOW:      { bg: "#14532d", border: "#22c55e", text: "#86efac" }
+        };
+        const bc = bannerColors[data.risk_level] || bannerColors.LOW;
+        const banner = document.getElementById("pdf-risk-banner");
+        banner.style.background   = bc.bg;
+        banner.style.borderColor  = bc.border;
+        document.getElementById("pdf-risk-level").style.color = bc.text;
+
+        const el = document.getElementById("pdf-report-template");
+        el.style.left = "-9999px";
+
+        const opt = {
+            margin:      [0, 0, 0, 0],
+            filename:    `AEGIS_Threat_Report_${now.toISOString().slice(0,10)}.pdf`,
+            image:       { type: "jpeg", quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF:       { unit: "px", format: "a4", orientation: "portrait", hotfixes: ["px_scaling"] }
+        };
+
+        await html2pdf().set(opt).from(el).save();
+        showToast("📄 PDF report downloaded successfully.");
+
+    } catch (err) {
+        console.error("Report generation failed:", err);
+        showToast("Report generation failed. Ensure the backend is running.");
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = `<span>📄</span><span style="font-family:'Plus Jakarta Sans',sans-serif;">Generate AI PDF Report</span>`; }
+    }
+}
 
 // ── Escape HTML ───────────────────────────────────────────────────────────
 function escapeHtml(str) {

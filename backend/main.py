@@ -267,3 +267,113 @@ async def analyze_log(request: LogAnalysisRequest):
         "analysis":     analysis,
         "ai_model":     "AEGIS-Llama3-8B-Quantized"
     }
+
+# ─── POST /api/capture_fresh ─────────────────────────────────────────────────────
+@app.post("/api/capture_fresh")
+async def capture_fresh():
+    """
+    Wipe the entire FTS5 table then immediately re-ingest the live stream CSV
+    so the analyst gets a clean, up-to-date snapshot with zero stale data.
+    """
+    global _last_live_row_count
+    conn = get_conn()
+    c = conn.cursor()
+    try:
+        c.execute("DELETE FROM logs")
+        conn.commit()
+        _last_live_row_count = 0
+
+        rows_inserted = 0
+        if os.path.exists(LIVE_STREAM_FILE):
+            with open(LIVE_STREAM_FILE, mode="r", encoding="utf-8-sig", errors="replace") as f:
+                reader = csv.DictReader(f)
+                new_entries = []
+                for row in reader:
+                    new_entries.append({
+                        "timestamp":  row.get("TimeCreated", "Unknown"),
+                        "severity":   row.get("LevelDisplayName", "Information"),
+                        "source_ip":  "LIVE_STREAM",
+                        "event_type": row.get("ProviderName", "UnifiedLog"),
+                        "message":    (row.get("Message") or "").strip()
+                    })
+            if new_entries:
+                c.executemany("""
+                    INSERT INTO logs(timestamp, severity, source_ip, event_type, message)
+                    VALUES (:timestamp, :severity, :source_ip, :event_type, :message)
+                """, new_entries)
+                conn.commit()
+                _last_live_row_count = len(new_entries)
+                rows_inserted = len(new_entries)
+
+        log.info(f"Fresh capture complete: {rows_inserted} rows loaded.")
+        return {
+            "status":        "success",
+            "message":       f"Old logs purged. Fresh capture initiated. {rows_inserted} live events loaded.",
+            "rows_inserted": rows_inserted
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+# ─── GET /api/executive_summary ──────────────────────────────────────────────────
+@app.get("/api/executive_summary")
+def executive_summary():
+    """
+    Macro-level heuristic analysis over all current logs.
+    Returns a structured executive report for PDF generation.
+    """
+    conn = get_conn()
+    c = conn.cursor()
+    try:
+        c.execute("SELECT severity, message, event_type FROM logs")
+        rows = c.fetchall()
+
+        total     = len(rows)
+        criticals = sum(1 for r in rows if str(r["severity"] or "").upper() in ("CRITICAL", "ERROR"))
+        warnings  = sum(1 for r in rows if str(r["severity"] or "").upper() in ("WARNING", "WARN"))
+        info_cnt  = max(0, total - criticals - warnings)
+
+        all_msgs = " ".join(str(r["message"] or "") for r in rows).lower()
+        recon    = any(k in all_msgs for k in ["nmap", "scan", "port scan", "reconnaissance"])
+        brute    = any(k in all_msgs for k in ["failed login", "4625", "brute", "spray"])
+        malware  = any(k in all_msgs for k in ["malware", "ransomware", "blocked", "defender"])
+        c2       = any(k in all_msgs for k in ["4444", "metasploit", "reverse shell", "beacon"])
+
+        findings = []
+        if c2:      findings.append("active Command & Control beaconing")
+        if malware: findings.append("malware execution attempts")
+        if brute:   findings.append("credential brute-force activity")
+        if recon:   findings.append("network reconnaissance patterns")
+
+        if findings:
+            summary        = f"AEGIS AI analyzed {total} events and detected: {', '.join(findings)}."
+            recommendation = ("IMMEDIATE ACTION REQUIRED: Isolate affected nodes from the network, rotate all "
+                              "credentials, and initiate full forensic memory capture on flagged endpoints. "
+                              "Escalate to Tier-3 SOC and engage IR retainer.")
+            risk_level = "CRITICAL" if (c2 or malware) else "HIGH"
+        elif criticals > 0:
+            summary        = f"AEGIS AI analyzed {total} events. Detected {criticals} critical/error events requiring analyst review."
+            recommendation = ("Investigate all ERROR-level events within 2 hours. Verify system integrity "
+                              "on affected hosts and review authentication logs for anomalous patterns.")
+            risk_level = "MEDIUM"
+        else:
+            summary        = f"AEGIS AI analyzed {total} events. No high-confidence threat signatures detected in this capture window."
+            recommendation = ("Continue passive monitoring. Maintain current logging verbosity and schedule "
+                              "a follow-up capture in 15 minutes to validate baseline stability.")
+            risk_level = "LOW"
+
+        return {
+            "total_events":   total,
+            "critical_count": criticals,
+            "warning_count":  warnings,
+            "info_count":     info_cnt,
+            "risk_level":     risk_level,
+            "summary":        summary,
+            "recommendation": recommendation,
+            "ai_model":       "AEGIS-Llama3-8B-Quantized"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
