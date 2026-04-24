@@ -3,27 +3,44 @@ import csv
 import os
 import random
 import asyncio
+import logging
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-LOG_FILE = "real_windows_logs.csv"
-DB_FILE = "logs.db"
+# ─── Configuration ─────────────────────────────────────────────────────────────
+STATIC_LOG_FILE  = "real_windows_logs.csv"       # Static Windows CSV ingested at boot
+LIVE_STREAM_FILE = "/app/shared_logs/live_stream.csv"  # Hot-reload path mounted via Docker volume
+DB_FILE          = "logs.db"
+POLL_INTERVAL    = 5   # seconds between live-stream polling cycles
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
+log = logging.getLogger("aegis")
+
+# ─── Pydantic Models ────────────────────────────────────────────────────────────
 class LogAnalysisRequest(BaseModel):
-    message: str
-    severity: str = "Unknown"
+    message:    str
+    severity:   str = "Unknown"
     event_type: str = "Unknown"
 
+# ─── Database Helpers ───────────────────────────────────────────────────────────
+def get_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def setup_database():
-    """Drops existing tables and populates SQLite FTS5 database directly from Windows CSV logs"""
-    conn = sqlite3.connect(DB_FILE)
+    """
+    Called once at startup.
+    Drops the existing FTS5 table, recreates it fresh, and bulk-ingests
+    the static real_windows_logs.csv file.
+    """
+    conn = get_conn()
     c = conn.cursor()
-    
+
     c.execute("DROP TABLE IF EXISTS logs")
-    
-    c.execute('''
+    c.execute("""
         CREATE VIRTUAL TABLE logs USING fts5(
             timestamp UNINDEXED,
             severity,
@@ -31,47 +48,103 @@ def setup_database():
             event_type,
             message
         )
-    ''')
-    
-    if not os.path.exists(LOG_FILE):
+    """)
+
+    if not os.path.exists(STATIC_LOG_FILE):
+        log.warning(f"Static log file not found: {STATIC_LOG_FILE} — skipping static ingestion.")
         conn.commit()
         conn.close()
         return
 
-    log_entries = []
-    
-    # utf-8-sig automatically wipes any invisible Byte-Order Marks from Windows CSVs
-    with open(LOG_FILE, mode="r", encoding="utf-8-sig") as f:
+    entries = []
+    with open(STATIC_LOG_FILE, mode="r", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            timestamp = row.get("TimeCreated", "Unknown Time")
-            severity = row.get("LevelDisplayName", "INFO")
-            event_type = row.get("ProviderName", "Unknown Provider")
-            message = row.get("Message", "")
-            
-            log_entries.append({
-                "timestamp": timestamp,
-                "severity": severity,
-                "source_ip": "LOCAL_SYSTEM",
-                "event_type": event_type,
-                "message": message.strip() if message else ""
+            entries.append({
+                "timestamp":  row.get("TimeCreated", "Unknown"),
+                "severity":   row.get("LevelDisplayName", "Information"),
+                "source_ip":  "LOCAL_SYSTEM",
+                "event_type": row.get("ProviderName", "Unknown Provider"),
+                "message":    (row.get("Message") or "").strip()
             })
-            
-    if log_entries:
-        c.executemany('''
+
+    if entries:
+        c.executemany("""
             INSERT INTO logs(timestamp, severity, source_ip, event_type, message)
             VALUES (:timestamp, :severity, :source_ip, :event_type, :message)
-        ''', log_entries)
-        
+        """, entries)
+        log.info(f"Static ingestion complete: {len(entries)} rows indexed from {STATIC_LOG_FILE}")
+
     conn.commit()
     conn.close()
 
+# ─── Live Stream Background Worker ──────────────────────────────────────────────
+_last_live_row_count = 0   # Track how many rows we saw last cycle to detect changes
+
+async def live_stream_poller():
+    """
+    Runs forever in the background.
+    Every POLL_INTERVAL seconds, attempts to read LIVE_STREAM_FILE.
+    - If the file is missing or locked → logs a warning and retries next cycle.
+    - If row count has grown → inserts the NEW rows only.
+    - Marks ingested rows with source_ip = 'LIVE_STREAM' so the UI can distinguish them.
+    """
+    global _last_live_row_count
+
+    while True:
+        await asyncio.sleep(POLL_INTERVAL)
+        try:
+            if not os.path.exists(LIVE_STREAM_FILE):
+                log.debug(f"Live stream file not present yet: {LIVE_STREAM_FILE} — waiting...")
+                continue
+
+            new_entries = []
+            with open(LIVE_STREAM_FILE, mode="r", encoding="utf-8-sig", errors="replace") as f:
+                reader = csv.DictReader(f)
+                all_rows = list(reader)
+
+            # Only insert rows beyond what we already ingested
+            fresh_rows = all_rows[_last_live_row_count:]
+            if not fresh_rows:
+                continue
+
+            for row in fresh_rows:
+                new_entries.append({
+                    "timestamp":  row.get("TimeCreated", "Unknown"),
+                    "severity":   row.get("LevelDisplayName", "Information"),
+                    "source_ip":  "LIVE_STREAM",          # visually distinct in the dashboard
+                    "event_type": row.get("ProviderName", "UnifiedLog"),
+                    "message":    (row.get("Message") or "").strip()
+                })
+
+            conn = get_conn()
+            c = conn.cursor()
+            c.executemany("""
+                INSERT INTO logs(timestamp, severity, source_ip, event_type, message)
+                VALUES (:timestamp, :severity, :source_ip, :event_type, :message)
+            """, new_entries)
+            conn.commit()
+            conn.close()
+
+            _last_live_row_count = len(all_rows)
+            log.info(f"Live stream: ingested {len(new_entries)} new event(s). Total live rows seen: {_last_live_row_count}")
+
+        except PermissionError:
+            log.warning(f"Live stream file is locked — will retry in {POLL_INTERVAL}s")
+        except Exception as e:
+            log.warning(f"Live stream polling error (non-fatal): {e!r} — retrying in {POLL_INTERVAL}s")
+
+# ─── FastAPI Lifespan ────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: rebuild DB then kick off background poller
     setup_database()
+    asyncio.create_task(live_stream_poller())
+    log.info("AEGIS SOC Backend online. Live stream poller active.")
     yield
+    # Shutdown — nothing explicit needed; task is cancelled by the event loop
 
-app = FastAPI(title="Real Windows CSV SOC Backend", lifespan=lifespan)
+app = FastAPI(title="AEGIS SOC Analyst Backend", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -81,65 +154,91 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ─── GET /api/logs ────────────────────────────────────────────────────────────────
 @app.get("/api/logs")
 def get_logs(
-    search: str = Query(None, description="Global full-text search string"),
-    limit: int = Query(100, description="Max resulting array payload density per request")
+    search: str  = Query(None, description="FTS5 full-text search string"),
+    limit:  int  = Query(200,  description="Max rows returned")
 ):
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
+    conn = get_conn()
     c = conn.cursor()
-    
+
     try:
+        # Total indexed count for telemetry panel
+        c.execute("SELECT count(*) FROM logs")
+        total_indexed = c.fetchone()[0]
+
         if search:
-            clean_search = search.replace('"', '').strip()
-            if not clean_search:
-                c.execute("SELECT rowid as id, timestamp, severity, source_ip, event_type, message FROM logs ORDER BY rowid ASC LIMIT ?", (limit,))
-            else:
-                fts_query = f'"{clean_search}"*'
+            clean = search.replace('"', '').strip()
+            if not clean:
                 c.execute(
-                    "SELECT rowid as id, timestamp, severity, source_ip, event_type, message FROM logs WHERE logs MATCH ? ORDER BY rowid ASC LIMIT ?",
+                    "SELECT rowid as id, timestamp, severity, source_ip, event_type, message FROM logs ORDER BY rowid DESC LIMIT ?",
+                    (limit,)
+                )
+            else:
+                # Support field-scoped FTS5 queries passed directly from the frontend
+                # e.g. "severity : \"Error\"*"  or plain keyword
+                fts_query = clean if ":" in clean else f'"{clean}"*'
+                c.execute(
+                    "SELECT rowid as id, timestamp, severity, source_ip, event_type, message FROM logs WHERE logs MATCH ? ORDER BY rowid DESC LIMIT ?",
                     (fts_query, limit)
                 )
         else:
-            c.execute("SELECT rowid as id, timestamp, severity, source_ip, event_type, message FROM logs ORDER BY rowid ASC LIMIT ?", (limit,))
-            
+            c.execute(
+                "SELECT rowid as id, timestamp, severity, source_ip, event_type, message FROM logs ORDER BY rowid DESC LIMIT ?",
+                (limit,)
+            )
+
         rows = c.fetchall()
         logs_list = [dict(row) for row in rows]
-            
-        return {"logs": logs_list}
-        
+
+        return {
+            "metadata": {
+                "total_indexed_events": total_indexed,
+                "returned":            len(logs_list),
+                "live_stream_active":  os.path.exists(LIVE_STREAM_FILE)
+            },
+            "logs": logs_list
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
+# ─── POST /api/analyze ────────────────────────────────────────────────────────────
 @app.post("/api/analyze")
 async def analyze_log(request: LogAnalysisRequest):
     """
-    Mock AI Endpoint: High-performance heuristic 'Expert System' simulating a local offline LLM analysis matrix.
+    Mock offline LLM — Heuristic Expert System.
+    Simulates local Llama-3 inference latency before returning a structured IR report.
     """
-    # Emulate complex local token generation payload limits
     await asyncio.sleep(random.uniform(1.2, 2.5))
-    
-    msg_lower = request.message.lower()
+
+    msg_lower   = request.message.lower()
     event_lower = request.event_type.lower()
-    
+
     if "4444" in msg_lower or "metasploit" in msg_lower:
-         threat_level = "Critical"
-         analysis = "Critical: Reverse Shell/C2 Activity. Action: Immediately sever external network connections for impacted host and audit active processes."
+        threat_level = "Critical"
+        analysis = "Critical: Reverse Shell / C2 Beaconing Activity detected. Action: Immediately sever external network connections for impacted host, dump memory forensics, and initiate full endpoint isolation protocol."
     elif "failed login" in msg_lower or "ssh" in msg_lower or "4625" in msg_lower:
-         threat_level = "High"
-         analysis = "High: Brute Force Attempt. Action: Block Source IP immediately and enforce targeted MFA audits."
-    elif "nmap" in msg_lower or "scanning" in msg_lower:
-         threat_level = "Medium"
-         analysis = "Medium: Reconnaissance Detected. Action: Monitor perimeter firewalls for aggressive port access anomalies and rate-limit source."
+        threat_level = "High"
+        analysis = "High: Credential Brute Force / Password Spray Attempt. Action: Block source IP at perimeter firewall, force reset targeted credentials, and enforce MFA across all identity boundaries."
+    elif "nmap" in msg_lower or "scanning" in msg_lower or "port scan" in msg_lower:
+        threat_level = "Medium"
+        analysis = "Medium: Active Network Reconnaissance Detected. Action: Rate-limit and geo-fence the scanning source, review perimeter firewall ACLs, and flag for SOC analyst review."
+    elif "malware" in msg_lower or "ransomware" in msg_lower or "defender" in event_lower or "blocked" in msg_lower:
+        threat_level = "High"
+        analysis = "High: Polymorphic Malware Execution Intercepted. Action: Forensically isolate the host node from Active Directory, rotate Kerberos tokens, and submit sample for sandbox detonation."
+    elif "error" in msg_lower or "failed" in msg_lower or "failure" in msg_lower:
+        threat_level = "Medium"
+        analysis = "Medium: Recurring failure event pattern detected. Action: Investigate root cause — may indicate misconfiguration, resource exhaustion, or early-stage intrusion attempt."
     else:
-         threat_level = "Low"
-         analysis = "Low: No overt compromise signatures detected. Action: Standard heuristics monitoring maintained successfully."
+        threat_level = "Low"
+        analysis = "Low: No overt compromise signatures detected in this telemetry entry. Action: Standard baseline monitoring maintained. Continue passive observation."
 
     return {
         "threat_level": threat_level,
-        "analysis": analysis,
-        "ai_model": "AEGIS-Llama3-8B-Quantized"
+        "analysis":     analysis,
+        "ai_model":     "AEGIS-Llama3-8B-Quantized"
     }
