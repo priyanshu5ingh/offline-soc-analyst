@@ -2,6 +2,7 @@ import sqlite3
 import csv
 import os
 import random
+import time
 import asyncio
 import logging
 from pydantic import BaseModel
@@ -78,61 +79,76 @@ def setup_database():
     conn.commit()
     conn.close()
 
-# ─── Live Stream Background Worker ──────────────────────────────────────────────
+# ─── Live Stream Sync Logic ─────────────────────────────────────────────────────
 _last_live_row_count = 0   # Track how many rows we saw last cycle to detect changes
 
-async def live_stream_poller():
+def sync_live_stream():
     """
-    Runs forever in the background.
-    Every POLL_INTERVAL seconds, attempts to read LIVE_STREAM_FILE.
-    - If the file is missing or locked → logs a warning and retries next cycle.
-    - If row count has grown → inserts the NEW rows only.
-    - Marks ingested rows with source_ip = 'LIVE_STREAM' so the UI can distinguish them.
+    Reads the LIVE_STREAM_FILE, finds new rows since last check,
+    and inserts them into the FTS5 database.
+    Returns a dict with execution metrics.
     """
     global _last_live_row_count
+    t0 = time.time()
+    try:
+        if not os.path.exists(LIVE_STREAM_FILE):
+            return {
+                "status": "error", "rows_inserted": 0, "message": "Live stream file not present yet.",
+                "execution_time_ms": round((time.time()-t0)*1000, 2)
+            }
 
+        with open(LIVE_STREAM_FILE, mode="r", encoding="utf-8-sig", errors="replace") as f:
+            reader = csv.DictReader(f)
+            all_rows = list(reader)
+
+        fresh_rows = all_rows[_last_live_row_count:]
+        if not fresh_rows:
+            return {
+                "status": "success", "rows_inserted": 0, "message": "No new events found.",
+                "execution_time_ms": round((time.time()-t0)*1000, 2)
+            }
+
+        new_entries = []
+        for row in fresh_rows:
+            new_entries.append({
+                "timestamp":  row.get("TimeCreated", "Unknown"),
+                "severity":   row.get("LevelDisplayName", "Information"),
+                "source_ip":  "LIVE_STREAM",
+                "event_type": row.get("ProviderName", "UnifiedLog"),
+                "message":    (row.get("Message") or "").strip()
+            })
+
+        conn = get_conn()
+        c = conn.cursor()
+        c.executemany("""
+            INSERT INTO logs(timestamp, severity, source_ip, event_type, message)
+            VALUES (:timestamp, :severity, :source_ip, :event_type, :message)
+        """, new_entries)
+        conn.commit()
+        conn.close()
+
+        _last_live_row_count = len(all_rows)
+        return {
+            "status": "success", "rows_inserted": len(new_entries), "message": "Volume mount read successful.",
+            "execution_time_ms": round((time.time()-t0)*1000, 2)
+        }
+    except PermissionError:
+        return {"status": "error", "rows_inserted": 0, "message": "File is locked.", "execution_time_ms": round((time.time()-t0)*1000, 2)}
+    except Exception as e:
+        return {"status": "error", "rows_inserted": 0, "message": str(e), "execution_time_ms": round((time.time()-t0)*1000, 2)}
+
+# ─── Background Worker ──────────────────────────────────────────────────────────
+async def live_stream_poller():
+    """ Runs forever in the background, polling the live stream every POLL_INTERVAL seconds. """
+    global _last_live_row_count
     while True:
         await asyncio.sleep(POLL_INTERVAL)
-        try:
-            if not os.path.exists(LIVE_STREAM_FILE):
-                log.debug(f"Live stream file not present yet: {LIVE_STREAM_FILE} — waiting...")
-                continue
+        res = sync_live_stream()
+        if res["status"] == "success" and res["rows_inserted"] > 0:
+            log.info(f"Background Sync: ingested {res['rows_inserted']} new event(s). Total seen: {_last_live_row_count}")
+        elif res["status"] == "error" and "not present" not in res["message"]:
+            log.warning(f"Background Sync error (non-fatal): {res['message']}")
 
-            new_entries = []
-            with open(LIVE_STREAM_FILE, mode="r", encoding="utf-8-sig", errors="replace") as f:
-                reader = csv.DictReader(f)
-                all_rows = list(reader)
-
-            # Only insert rows beyond what we already ingested
-            fresh_rows = all_rows[_last_live_row_count:]
-            if not fresh_rows:
-                continue
-
-            for row in fresh_rows:
-                new_entries.append({
-                    "timestamp":  row.get("TimeCreated", "Unknown"),
-                    "severity":   row.get("LevelDisplayName", "Information"),
-                    "source_ip":  "LIVE_STREAM",          # visually distinct in the dashboard
-                    "event_type": row.get("ProviderName", "UnifiedLog"),
-                    "message":    (row.get("Message") or "").strip()
-                })
-
-            conn = get_conn()
-            c = conn.cursor()
-            c.executemany("""
-                INSERT INTO logs(timestamp, severity, source_ip, event_type, message)
-                VALUES (:timestamp, :severity, :source_ip, :event_type, :message)
-            """, new_entries)
-            conn.commit()
-            conn.close()
-
-            _last_live_row_count = len(all_rows)
-            log.info(f"Live stream: ingested {len(new_entries)} new event(s). Total live rows seen: {_last_live_row_count}")
-
-        except PermissionError:
-            log.warning(f"Live stream file is locked — will retry in {POLL_INTERVAL}s")
-        except Exception as e:
-            log.warning(f"Live stream polling error (non-fatal): {e!r} — retrying in {POLL_INTERVAL}s")
 
 # ─── FastAPI Lifespan ────────────────────────────────────────────────────────────
 @asynccontextmanager
@@ -205,6 +221,18 @@ def get_logs(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+# ─── POST /api/sync ───────────────────────────────────────────────────────────────
+@app.post("/api/sync")
+async def force_sync():
+    """
+    Force an immediate live stream sync, returning strict telemetry data
+    for the frontend interactive console.
+    """
+    res = sync_live_stream()
+    if res["status"] == "error":
+        raise HTTPException(status_code=500, detail=res["message"])
+    return res
 
 # ─── POST /api/analyze ────────────────────────────────────────────────────────────
 @app.post("/api/analyze")

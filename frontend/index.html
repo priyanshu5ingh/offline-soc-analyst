@@ -170,6 +170,28 @@
             font-family: 'JetBrains Mono', monospace; font-size: 11px;
             color: #94a3b8; min-width: 240px;
         }
+        /* ── Terminal Console ───────────────────────────────────────────── */
+        .term-overlay {
+            position: fixed; inset: 0; z-index: 60;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(15,23,42,0.85); backdrop-filter: blur(8px);
+        }
+        .term-box {
+            width: 100%; max-width: 650px;
+            background: #060b14; border: 1px solid #1e2d45; border-radius: 12px;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(34,211,238,0.1);
+            animation: slideUp 0.3s ease both; overflow: hidden;
+        }
+        .term-header {
+            background: #0d1117; border-bottom: 1px solid #1e2d45;
+            padding: 8px 16px; display: flex; align-items: center; gap: 8px;
+        }
+        .term-body {
+            padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 13px;
+            color: #22c55e; min-height: 220px;
+        }
+        .term-line { display: block; margin-bottom: 8px; }
+        .term-cursor::after { content: '█'; animation: blink 1s step-end infinite; }
     </style>
 </head>
 <body class="min-h-screen antialiased">
@@ -341,12 +363,10 @@
                 <button id="clear-search" onclick="clearSearch()" style="display:none;color:#94a3b8;" class="hover:text-slate-600 text-lg leading-none flex-shrink-0">✕</button>
             </div>
 
-            <!-- Sync -->
-            <button id="sync-btn" onclick="fetchLogs()" class="btn-sync flex-shrink-0">
-                <svg id="sync-icon" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                <span id="sync-label">Sync Feed</span>
+            <!-- Force Sync -->
+            <button id="force-sync-btn" onclick="forceSync()" class="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition-all hover:bg-slate-800" style="box-shadow: 0 0 0 1px rgba(99,102,241,0.4), 0 4px 16px rgba(99,102,241,0.2);">
+                <span class="text-indigo-400">⚡</span>
+                <span style="font-family: 'Plus Jakarta Sans', sans-serif;">Force Telemetry Sync</span>
             </button>
         </div>
     </div>
@@ -432,6 +452,25 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════
+     INGESTION CONSOLE MODAL
+══════════════════════════════════════════════════════════════════════════ -->
+<div id="sync-console" class="term-overlay" style="display:none;" onclick="closeSyncConsole()">
+    <div class="term-box" onclick="event.stopPropagation()">
+        <div class="term-header">
+            <div class="flex gap-2">
+                <div class="w-3 h-3 rounded-full bg-slate-700"></div>
+                <div class="w-3 h-3 rounded-full bg-slate-700"></div>
+                <div class="w-3 h-3 rounded-full bg-slate-700"></div>
+            </div>
+            <span class="text-xs font-bold uppercase tracking-widest mono text-slate-500 ml-4">AEGIS CLI — /bin/sh</span>
+        </div>
+        <div class="term-body" id="term-output">
+            <!-- Terminal text gets injected here -->
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
      ERROR TOAST
 ══════════════════════════════════════════════════════════════════════════ -->
 <div id="toast" class="toast" style="display:none;">
@@ -449,6 +488,7 @@
 const API_BASE    = "http://127.0.0.1:8000";
 const API_LOGS    = `${API_BASE}/api/logs`;
 const API_ANALYZE = `${API_BASE}/api/analyze`;
+const API_SYNC    = `${API_BASE}/api/sync`;
 
 let allLogs      = [];
 let searchTimer  = null;
@@ -555,13 +595,8 @@ function buildSearchParams(query, filter) {
 // ── Fetch logs ────────────────────────────────────────────────────────────
 async function fetchLogs(search) {
     if (search === undefined) search = document.getElementById("search-input").value.trim();
-    const filter   = document.getElementById("filter-select").value;
-    const syncBtn  = document.getElementById("sync-btn");
-    const syncIcon = document.getElementById("sync-icon");
+    const filter = document.getElementById("filter-select").value;
 
-    syncBtn.disabled = true;
-    syncIcon.classList.add("spin");
-    document.getElementById("sync-label").textContent = "Querying...";
     updateQueryDisplay(search, filter);
 
     const t0 = performance.now();
@@ -593,11 +628,64 @@ async function fetchLogs(search) {
             </td></tr>`;
         document.getElementById("sync-status").textContent = "Backend offline – retry when the API is running.";
         showToast("Backend unreachable. Ensure the FastAPI server or Docker container is running on port 8000.");
-    } finally {
-        syncBtn.disabled  = false;
-        syncIcon.classList.remove("spin");
-        document.getElementById("sync-label").textContent = "Sync Feed";
     }
+}
+
+// ── Interactive Ingestion Console ─────────────────────────────────────────
+async function forceSync() {
+    const term = document.getElementById("sync-console");
+    const out = document.getElementById("term-output");
+    term.style.display = "flex";
+    
+    // Clear array of lines
+    const lines = [
+        "Initializing secure volume bind...",
+        "Reading host telemetry pipe...",
+        "Parsing CSV matrices..."
+    ];
+    
+    out.innerHTML = `<span class="term-cursor text-slate-400">&gt;</span>`;
+    
+    // Function to simulate typing
+    const typeLine = async (text, delay = 500) => {
+        out.innerHTML = out.innerHTML.replace('<span class="term-cursor text-slate-400">&gt;</span>', '');
+        out.innerHTML += `<span class="term-line">&gt; ${text}</span>`;
+        out.innerHTML += `<span class="term-cursor text-slate-400">&gt;</span>`;
+        await new Promise(r => setTimeout(r, delay));
+    };
+
+    try {
+        for (let line of lines) {
+            await typeLine(line, 600 + Math.random() * 400); // 600-1000ms delay per line for effect
+        }
+
+        // Call the backend API
+        const res = await fetch(API_SYNC, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        
+        // Final line
+        out.innerHTML = out.innerHTML.replace('<span class="term-cursor text-slate-400">&gt;</span>', '');
+        if (data.status === "success") {
+            out.innerHTML += `<span class="term-line" style="color:#38bdf8;">&gt; SUCCESS: Ingested ${data.rows_inserted} new events in ${data.execution_time_ms} ms.</span>`;
+            out.innerHTML += `<span class="term-line mt-4 text-slate-500">Press anywhere to dismiss.</span>`;
+        } else {
+            out.innerHTML += `<span class="term-line text-yellow-400">&gt; WARNING: ${data.message}</span>`;
+            out.innerHTML += `<span class="term-line mt-4 text-slate-500">Press anywhere to dismiss.</span>`;
+        }
+        
+        // Refresh the main table to pull the new logs from SQLite
+        fetchLogs();
+        
+    } catch (err) {
+        out.innerHTML = out.innerHTML.replace('<span class="term-cursor text-slate-400">&gt;</span>', '');
+        out.innerHTML += `<span class="term-line text-red-500">&gt; FATAL ERROR: Failed to reach backend API.</span>`;
+        out.innerHTML += `<span class="term-line mt-4 text-slate-500">Press anywhere to dismiss.</span>`;
+    }
+}
+
+function closeSyncConsole() {
+    document.getElementById("sync-console").style.display = "none";
 }
 
 // ── Render table ──────────────────────────────────────────────────────────
