@@ -1,0 +1,5 @@
+2026-04-24T11:35:00Z CRITICAL 192.168.1.50 Failed Login: Multiple failed SSH login attempts for user 'root'
+2026-04-24T11:36:12Z WARNING 10.0.0.12 Suspicious Traffic: High volume of outgoing packets to port 4444
+2026-04-24T11:40:05Z INFO 192.168.1.100 System Restart: The server initiated a scheduled reboot
+2026-04-24T11:45:20Z ERROR 172.16.5.50 Authentication Error: NTLM auth failure for ADMIN$
+2026-04-24T11:50:33Z CRITICAL 192.168.1.50 Malware Detected: Antivirus blocked execution of ransomware.exe
