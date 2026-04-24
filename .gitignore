@@ -46,3 +46,25 @@ coverage/
 
 # Docker
 docker-compose.override.yml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.venv/
+venv/
+env/
+
+# SQLite database (auto-generated on startup, never commit)
+*.db
+*.db-shm
+*.db-wal
+
+# Docker export archives
+*.tar
+
+# Generated log files
+server_events.log

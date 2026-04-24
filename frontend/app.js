@@ -1,24 +1,33 @@
-const { useDeferredValue, useEffect, useState, startTransition } = React;
+const { useDeferredValue, useEffect, useState, useCallback, startTransition } = React;
 
-const API_URL = "http://127.0.0.1:8000/api/logs";
+const API_BASE = "http://127.0.0.1:8000";
+const API_LOGS_URL = `${API_BASE}/api/logs`;
+const API_ANALYZE_URL = `${API_BASE}/api/analyze`;
 
 const panelClass =
     "relative z-10 w-full max-w-full overflow-hidden rounded-[28px] border border-surface-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)] transition-all duration-300";
 
+// ─── Severity Helpers ─────────────────────────────────────────────────────────
 function getSeverityClasses(severity) {
     const level = String(severity ?? "INFO").toUpperCase();
-
-    if (level === "CRITICAL") {
+    if (level === "CRITICAL" || level === "ERROR") {
         return "border border-rose-200 bg-rose-50 text-rose-700 shadow-[0_10px_24px_rgba(190,24,93,0.08)]";
     }
-
-    if (level === "WARNING") {
+    if (level === "WARNING" || level === "WARN") {
         return "border border-amber-200 bg-amber-50 text-amber-700 shadow-[0_10px_24px_rgba(217,119,6,0.08)]";
     }
-
     return "border border-teal-200 bg-teal-50 text-teal-700 shadow-[0_10px_24px_rgba(15,118,110,0.08)]";
 }
 
+function getThreatLevelClasses(level) {
+    const l = String(level ?? "").toLowerCase();
+    if (l === "critical") return "text-rose-700 font-extrabold";
+    if (l === "high") return "text-orange-600 font-bold";
+    if (l === "medium") return "text-amber-600 font-bold";
+    return "text-teal-700 font-bold";
+}
+
+// ─── System Status Pill ───────────────────────────────────────────────────────
 function getSystemState({ error, loading }) {
     if (error) {
         return {
@@ -28,7 +37,6 @@ function getSystemState({ error, loading }) {
             pulse: false
         };
     }
-
     if (loading) {
         return {
             label: "Checking Feed",
@@ -37,7 +45,6 @@ function getSystemState({ error, loading }) {
             pulse: true
         };
     }
-
     return {
         label: "Feed Online",
         pillClass: "border border-teal-200 bg-teal-50 text-teal-700 shadow-[0_12px_30px_rgba(15,118,110,0.10)]",
@@ -46,50 +53,17 @@ function getSystemState({ error, loading }) {
     };
 }
 
-function filterLogs(logs, query) {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-        return logs;
-    }
-
-    return logs.filter((log) =>
-        [
-            log.timestamp,
-            log.severity,
-            log.source_ip,
-            log.event_type,
-            log.message
-        ].some((value) => String(value ?? "").toLowerCase().includes(normalizedQuery))
-    );
-}
-
 function formatTime(date = new Date()) {
-    return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
-    });
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+// ─── Mini Stat Cards ──────────────────────────────────────────────────────────
 function MiniCard({ label, title, detail, tone = "purple" }) {
     const toneMap = {
-        purple: {
-            bar: "bg-violet-700",
-            label: "text-violet-700",
-            glow: "bg-violet-100"
-        },
-        teal: {
-            bar: "bg-teal-700",
-            label: "text-teal-700",
-            glow: "bg-teal-100"
-        },
-        blue: {
-            bar: "bg-blue-700",
-            label: "text-blue-700",
-            glow: "bg-blue-100"
-        }
+        purple: { bar: "bg-violet-700", label: "text-violet-700", glow: "bg-violet-100" },
+        teal:   { bar: "bg-teal-700",   label: "text-teal-700",   glow: "bg-teal-100" },
+        blue:   { bar: "bg-blue-700",   label: "text-blue-700",   glow: "bg-blue-100" }
     };
-
     const toneStyles = toneMap[tone] ?? toneMap.purple;
 
     return (
@@ -103,54 +77,144 @@ function MiniCard({ label, title, detail, tone = "purple" }) {
     );
 }
 
+// ─── Table Empty / Error State ────────────────────────────────────────────────
 function TableState({ message, error = false }) {
     return (
         <tr>
-            <td
-                colSpan="5"
-                className={`px-6 py-16 text-center text-sm ${
-                    error ? "bg-rose-50 text-rose-700" : "bg-surface-50 text-surface-600"
-                } break-words`}
-            >
-                {message}
+            <td colSpan="6" className={`px-6 py-20 text-center text-sm ${error ? "bg-rose-50 text-rose-700" : "bg-surface-50 text-surface-500"} break-words`}>
+                {!error && (
+                    <div className="flex flex-col items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-surface-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="font-semibold">{message}</p>
+                    </div>
+                )}
+                {error && <p className="font-semibold">{message}</p>}
             </td>
         </tr>
     );
 }
 
-function EventRows({ logs, loading, error, emptyMessage }) {
-    if (loading) {
-        return <TableState message="Loading the local event feed..." />;
-    }
+// ─── AI Analysis Modal ────────────────────────────────────────────────────────
+function AiModal({ result, onClose }) {
+    if (!result) return null;
 
-    if (error) {
-        return <TableState message={error} error={true} />;
-    }
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-900/60 p-4 backdrop-blur-sm" onClick={onClose}>
+            <div
+                className="relative w-full max-w-xl overflow-hidden rounded-[28px] border border-surface-200 bg-white shadow-[0_32px_80px_rgba(15,23,42,0.22)]"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="border-b border-surface-200 bg-gradient-to-br from-surface-900 to-blue-950 px-7 py-5">
+                    <p className="text-xs font-bold uppercase tracking-[0.24em] text-blue-400">AEGIS AI Engine</p>
+                    <h3 className="mt-1 text-xl font-extrabold tracking-tight text-white">Threat Analysis Report</h3>
+                    <p className="mt-1 font-mono text-xs text-surface-400">{result.ai_model}</p>
+                </div>
 
-    if (!logs.length) {
-        return <TableState message={emptyMessage} />;
-    }
+                {/* Body */}
+                <div className="px-7 py-6">
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold uppercase tracking-wider text-surface-500">Threat Level:</span>
+                        <span className={`text-base ${getThreatLevelClasses(result.threat_level)}`}>{result.threat_level}</span>
+                    </div>
+                    <p className="mt-4 text-sm leading-7 text-surface-700">{result.analysis}</p>
+                </div>
 
-    return logs.map((log) => (
-        <tr
-            key={log.id ?? `${log.timestamp}-${log.source_ip}-${log.event_type}`}
-            className="group border-b border-surface-200 transition-colors last:border-b-0 hover:bg-blue-50/70"
-        >
-            <td className="px-6 py-4 text-sm font-medium text-surface-700 transition-colors group-hover:text-surface-900 sm:whitespace-nowrap">{log.timestamp}</td>
-            <td className="px-6 py-4">
-                <span
-                    className={`inline-flex min-w-[80px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-all duration-300 group-hover:scale-105 sm:min-w-[100px] ${getSeverityClasses(log.severity)}`}
-                >
-                    {String(log.severity ?? "INFO").toUpperCase()}
-                </span>
-            </td>
-            <td className="px-6 py-4 font-mono text-sm text-surface-700 transition-colors group-hover:text-blue-700 sm:whitespace-nowrap">{log.source_ip}</td>
-            <td className="px-6 py-4 text-sm font-bold text-surface-800 sm:whitespace-nowrap">{log.event_type}</td>
-            <td className="px-6 py-4 text-sm leading-7 text-surface-600 transition-colors group-hover:text-surface-800">{log.message}</td>
-        </tr>
-    ));
+                {/* Footer */}
+                <div className="border-t border-surface-100 bg-surface-50 px-7 py-4 text-right">
+                    <button
+                        onClick={onClose}
+                        className="rounded-full bg-surface-900 px-6 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(15,23,42,0.20)] transition-all hover:bg-blue-700"
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 }
 
+// ─── Notification Toast ───────────────────────────────────────────────────────
+function Toast({ message, onClose }) {
+    useEffect(() => {
+        const t = setTimeout(onClose, 5000);
+        return () => clearTimeout(t);
+    }, [onClose]);
+
+    return (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-4 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 shadow-[0_20px_50px_rgba(190,24,93,0.15)]">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z" />
+            </svg>
+            <p className="text-sm font-semibold text-rose-700">{message}</p>
+            <button onClick={onClose} className="ml-2 text-rose-400 hover:text-rose-700">✕</button>
+        </div>
+    );
+}
+
+// ─── Log Table Rows ───────────────────────────────────────────────────────────
+function EventRows({ logs, loading, error, emptyMessage, onAnalyze, analyzingId }) {
+    if (loading) return <TableState message="Loading the local event feed..." />;
+    if (error) return <TableState message={error} error={true} />;
+    if (!logs.length) return <TableState message={emptyMessage} />;
+
+    return logs.map((log) => {
+        const rowKey = log.id ?? `${log.timestamp}-${log.source_ip}-${log.event_type}`;
+        const isAnalyzing = analyzingId === rowKey;
+
+        return (
+            <tr
+                key={rowKey}
+                className="group border-b border-surface-200 transition-colors last:border-b-0 hover:bg-blue-50/70"
+            >
+                <td className="px-6 py-4 text-sm font-medium text-surface-700 transition-colors group-hover:text-surface-900 sm:whitespace-nowrap">
+                    {log.timestamp}
+                </td>
+                <td className="px-6 py-4">
+                    <span className={`inline-flex min-w-[80px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-all duration-300 group-hover:scale-105 sm:min-w-[100px] ${getSeverityClasses(log.severity)}`}>
+                        {String(log.severity ?? "INFO").toUpperCase()}
+                    </span>
+                </td>
+                <td className="px-6 py-4 font-mono text-sm text-surface-700 transition-colors group-hover:text-blue-700 sm:whitespace-nowrap">
+                    {log.source_ip}
+                </td>
+                <td className="px-6 py-4 text-sm font-bold text-surface-800 sm:whitespace-nowrap">
+                    {log.event_type}
+                </td>
+                <td className="max-w-sm px-6 py-4 text-sm leading-7 text-surface-600 transition-colors group-hover:text-surface-800">
+                    {log.message}
+                </td>
+                <td className="px-6 py-4">
+                    <button
+                        onClick={() => onAnalyze(log, rowKey)}
+                        disabled={isAnalyzing}
+                        className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-bold text-violet-700 shadow-[0_6px_14px_rgba(109,40,217,0.10)] transition-all duration-300 hover:bg-violet-700 hover:text-white hover:shadow-[0_10px_22px_rgba(109,40,217,0.22)] disabled:cursor-not-allowed disabled:opacity-60 sm:whitespace-nowrap"
+                    >
+                        {isAnalyzing ? (
+                            <>
+                                <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
+                                </svg>
+                                Scanning...
+                            </>
+                        ) : (
+                            <>
+                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                </svg>
+                                Analyze with AEGIS AI
+                            </>
+                        )}
+                    </button>
+                </td>
+            </tr>
+        );
+    });
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
 function App() {
     const [logs, setLogs] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
@@ -158,60 +222,91 @@ function App() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState("");
     const [lastSync, setLastSync] = useState("Waiting for the local API...");
+    const [toast, setToast] = useState("");
+    const [analyzingId, setAnalyzingId] = useState(null);
+    const [aiModal, setAiModal] = useState(null);
 
-    const deferredSearchQuery = useDeferredValue(searchQuery);
-    const filteredLogs = filterLogs(logs, deferredSearchQuery);
+    // Debounced search value — triggers API fetch after 350ms of no typing
+    const deferredQuery = useDeferredValue(searchQuery);
 
-    async function fetchLogs(options = {}) {
+    // ── Fetch Logs from Backend FTS5 ─────────────────────────────────────────
+    const fetchLogs = useCallback(async (options = {}) => {
         const isManualRefresh = Boolean(options.manual);
-
-        if (isManualRefresh) {
-            setRefreshing(true);
-        } else {
-            setLoading(true);
-        }
-
+        if (isManualRefresh) setRefreshing(true);
+        else setLoading(true);
         setError("");
 
         try {
-            const response = await fetch(API_URL, { method: "GET" });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+            // Send the query directly to the backend FTS5 engine for real search
+            const url = new URL(API_LOGS_URL);
+            if (options.query && options.query.trim()) {
+                url.searchParams.set("search", options.query.trim());
             }
+            url.searchParams.set("limit", "200");
+
+            const response = await fetch(url.toString(), { method: "GET" });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
             const data = await response.json();
             const nextLogs = Array.isArray(data.logs) ? data.logs : [];
 
-            startTransition(() => {
-                setLogs(nextLogs);
-            });
-
+            startTransition(() => setLogs(nextLogs));
             setLastSync(`Last sync ${formatTime()} from the local analyst endpoint.`);
         } catch (fetchError) {
             console.error("Failed to fetch logs:", fetchError);
-            startTransition(() => {
-                setLogs([]);
-            });
-            setError("Unable to reach 127.0.0.1:8000/api/logs. Confirm the local API is running.");
+            startTransition(() => setLogs([]));
+            setError("Unable to reach 127.0.0.1:8000/api/logs. Confirm the local API or Docker container is running.");
             setLastSync("Local API unavailable. The interface is ready as soon as the backend comes online.");
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }
-
-    useEffect(() => {
-        fetchLogs();
     }, []);
 
-    const activeFilter = deferredSearchQuery.trim();
+    // Initial load
+    useEffect(() => {
+        fetchLogs();
+    }, [fetchLogs]);
+
+    // Re-fetch from backend when search query changes (real FTS5 search)
+    useEffect(() => {
+        fetchLogs({ query: deferredQuery });
+    }, [deferredQuery, fetchLogs]);
+
+    // ── Analyze Log with AEGIS AI ─────────────────────────────────────────────
+    const handleAnalyze = useCallback(async (log, rowKey) => {
+        setAnalyzingId(rowKey);
+        try {
+            const response = await fetch(API_ANALYZE_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: log.message,
+                    severity: log.severity,
+                    event_type: log.event_type
+                })
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const result = await response.json();
+            setAiModal(result);
+        } catch (err) {
+            console.error("AI analysis failed:", err);
+            setToast("AEGIS AI engine unreachable. Ensure the backend is online and try again.");
+        } finally {
+            setAnalyzingId(null);
+        }
+    }, []);
+
+    const activeFilter = deferredQuery.trim();
     const emptyMessage = activeFilter
-        ? "No events match the current filter."
+        ? `No anomalies detected for "${activeFilter}".`
         : "No events returned by the local analyst API.";
-    const displayedCount = error ? 0 : filteredLogs.length;
+    const displayedCount = error ? 0 : logs.length;
     const statusMessage = activeFilter
-        ? `Showing filtered results for "${activeFilter}" from the locally cached event set.`
+        ? `Showing FTS5 results for "${activeFilter}" from the SQLite index.`
         : lastSync;
     const systemState = getSystemState({ error, loading });
 
@@ -223,6 +318,7 @@ function App() {
                     "radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 30%), radial-gradient(circle at top right, rgba(20, 184, 166, 0.10), transparent 26%), linear-gradient(180deg, #f8fbff 0%, #f8fafc 44%, #eef4ff 100%)"
             }}
         >
+            {/* Background blobs */}
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
                 <div className="absolute left-0 top-0 h-[220px] w-[220px] animate-drift-slow rounded-full bg-blue-200/60 blur-[90px] sm:-left-16 sm:h-[340px] sm:w-[340px] sm:blur-[95px]"></div>
                 <div className="absolute right-0 top-20 h-[220px] w-[220px] animate-drift-medium rounded-full bg-teal-200/55 blur-[95px] sm:-right-20 sm:top-24 sm:h-[360px] sm:w-[360px] sm:blur-[110px]"></div>
@@ -231,6 +327,8 @@ function App() {
             </div>
 
             <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+
+                {/* ── Hero Header ─────────────────────────────────────────────── */}
                 <section className={`${panelClass} px-5 py-6 sm:px-10 sm:py-8`}>
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                         <div className="max-w-3xl">
@@ -267,7 +365,10 @@ function App() {
                     </div>
                 </section>
 
+                {/* ── Search + Intake Row ──────────────────────────────────────── */}
                 <section className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.8fr)]">
+
+                    {/* FTS5 Search Bar */}
                     <section className={`${panelClass} flex min-h-[280px] flex-col justify-between p-5 sm:p-8`}>
                         <div>
                             <div className="flex items-start justify-between gap-4">
@@ -286,18 +387,24 @@ function App() {
                                         type="text"
                                         value={searchQuery}
                                         onChange={(event) => setSearchQuery(event.target.value)}
-                                        placeholder="Search severity, source IP, event type, or message..."
+                                        placeholder="Search severity, provider, or message... (powered by SQLite FTS5)"
                                         className="w-full bg-transparent text-base font-medium text-surface-900 outline-none placeholder:text-surface-400"
                                     />
+                                    {searchQuery && (
+                                        <button onClick={() => setSearchQuery("")} className="text-surface-400 hover:text-surface-700">
+                                            ✕
+                                        </button>
+                                    )}
                                 </label>
                             </div>
                         </div>
 
                         <p className="mt-6 max-w-3xl text-sm leading-7 text-surface-600">
-                            Built for fast analyst scanning. The event table updates instantly as you type.
+                            Search is powered by the SQLite FTS5 engine on the backend — not client-side filtering. Results are sub-millisecond.
                         </p>
                     </section>
 
+                    {/* File Intake */}
                     <section className={`${panelClass} flex flex-col p-5 sm:p-8`}>
                         <div className="flex items-start justify-between gap-4">
                             <div>
@@ -321,27 +428,14 @@ function App() {
                     </section>
                 </section>
 
+                {/* ── Stat Cards ───────────────────────────────────────────────── */}
                 <section className="mt-8 grid gap-6 md:grid-cols-3">
-                    <MiniCard
-                        label="Architecture"
-                        title="Air-Gapped Ready"
-                        detail="Designed to stay fully functional even when isolated from external networks."
-                        tone="purple"
-                    />
-                    <MiniCard
-                        label="Data Source"
-                        title="Local Pipeline"
-                        detail="Real-time fetching directly from the workstation's local analyst API."
-                        tone="teal"
-                    />
-                    <MiniCard
-                        label="Experience"
-                        title="Clean Triage"
-                        detail="Balanced density and modern aesthetics for frictionless log review."
-                        tone="blue"
-                    />
+                    <MiniCard label="Architecture" title="Air-Gapped Ready" detail="Designed to stay fully functional even when isolated from external networks." tone="purple" />
+                    <MiniCard label="Data Source" title="Local Pipeline" detail="Real-time fetching directly from the workstation's local analyst API." tone="teal" />
+                    <MiniCard label="Experience" title="Clean Triage" detail="Balanced density and modern aesthetics for frictionless log review." tone="blue" />
                 </section>
 
+                {/* ── Event Feed Table ─────────────────────────────────────────── */}
                 <section className={`${panelClass} mt-8 overflow-hidden`}>
                     <div className="flex flex-col gap-5 border-b border-surface-200 bg-surface-50/80 px-5 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-8">
                         <div>
@@ -356,7 +450,7 @@ function App() {
                             </span>
                             <button
                                 type="button"
-                                onClick={() => fetchLogs({ manual: true })}
+                                onClick={() => fetchLogs({ manual: true, query: searchQuery })}
                                 disabled={loading || refreshing}
                                 className="inline-flex items-center justify-center rounded-full bg-blue-700 px-6 py-2.5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(29,78,216,0.25)] transition-all duration-300 hover:bg-blue-800 hover:shadow-[0_18px_34px_rgba(29,78,216,0.28)] disabled:cursor-not-allowed disabled:opacity-60"
                             >
@@ -371,23 +465,38 @@ function App() {
                     </div>
 
                     <div className="overflow-x-auto">
-                        <table className="w-full table-fixed border-collapse">
+                        <table className="w-full border-collapse">
                             <thead className="border-b border-surface-200 bg-surface-50">
                                 <tr>
                                     <th className="px-6 py-5 text-left text-xs font-bold uppercase tracking-[0.20em] text-surface-600">Timestamp</th>
                                     <th className="px-6 py-5 text-left text-xs font-bold uppercase tracking-[0.20em] text-surface-600">Severity</th>
-                                    <th className="px-6 py-5 text-left text-xs font-bold uppercase tracking-[0.20em] text-surface-600">Source IP</th>
+                                    <th className="px-6 py-5 text-left text-xs font-bold uppercase tracking-[0.20em] text-surface-600">Source</th>
                                     <th className="px-6 py-5 text-left text-xs font-bold uppercase tracking-[0.20em] text-surface-600">Event Type</th>
                                     <th className="px-6 py-5 text-left text-xs font-bold uppercase tracking-[0.20em] text-surface-600">Message</th>
+                                    <th className="px-6 py-5 text-left text-xs font-bold uppercase tracking-[0.20em] text-surface-600">AEGIS AI</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white">
-                                <EventRows logs={filteredLogs} loading={loading} error={error} emptyMessage={emptyMessage} />
+                                <EventRows
+                                    logs={logs}
+                                    loading={loading}
+                                    error={error}
+                                    emptyMessage={emptyMessage}
+                                    onAnalyze={handleAnalyze}
+                                    analyzingId={analyzingId}
+                                />
                             </tbody>
                         </table>
                     </div>
                 </section>
+
             </main>
+
+            {/* ── AI Analysis Modal ──────────────────────────────────────────── */}
+            <AiModal result={aiModal} onClose={() => setAiModal(null)} />
+
+            {/* ── Error Toast ────────────────────────────────────────────────── */}
+            {toast && <Toast message={toast} onClose={() => setToast("")} />}
         </div>
     );
 }

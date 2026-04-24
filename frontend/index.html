@@ -3,65 +3,516 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline SOC Log Analyst</title>
-    
-    <!-- Google Fonts -->
+    <title>AEGIS SOC Analyst — Offline Mode</title>
+    <meta name="description" content="AEGIS Portable Offline SOC Log Analyst — Air-gapped forensic triage powered by SQLite FTS5 and a local AI inference engine.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        window.tailwind = window.tailwind || {};
-        window.tailwind.config = {
+        tailwind.config = {
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-                        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
-                    },
-                    colors: {
-                        surface: {
-                            50: '#f8fafc',
-                            100: '#f1f5f9',
-                            200: '#e2e8f0',
-                            300: '#cbd5e1',
-                            400: '#94a3b8',
-                            500: '#64748b',
-                            600: '#475569',
-                            700: '#334155',
-                            800: '#1e293b',
-                            900: '#0f172a',
-                        },
-                        neon: {
-                            purple: '#6d28d9',
-                            pink: '#be185d',
-                            teal: '#0f766e',
-                            blue: '#1d4ed8',
-                        }
-                    },
-                    animation: {
-                        'drift-slow': 'drift 20s infinite alternate ease-in-out',
-                        'drift-medium': 'drift 15s infinite alternate-reverse ease-in-out',
-                    },
-                    keyframes: {
-                        drift: {
-                            '0%': { transform: 'translate(0, 0) scale(1)' },
-                            '100%': { transform: 'translate(30px, -50px) scale(1.1)' },
-                        }
+                        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui'],
+                        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
                     }
                 }
             }
-        };
+        }
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./style.css">
-</head>
-<body class="min-h-screen bg-surface-50 font-sans text-surface-900 antialiased selection:bg-blue-100 selection:text-blue-900">
-    <div id="root"></div>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui; }
+        code, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script type="text/babel" data-presets="env,react" src="./app.js"></script>
+        @keyframes drift {
+            0%   { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, -50px) scale(1.1); }
+        }
+        @keyframes ping {
+            75%, 100% { transform: scale(2); opacity: 0; }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .blob-1 { animation: drift 20s infinite alternate ease-in-out; }
+        .blob-2 { animation: drift 15s infinite alternate-reverse ease-in-out; }
+        .ping-dot { animation: ping 1.5s cubic-bezier(0,0,0.2,1) infinite; }
+        .spin { animation: spin 1s linear infinite; }
+        .fade-in { animation: fadeIn 0.35s ease both; }
+        .slide-up { animation: slideUp 0.3s ease both; }
+
+        .panel {
+            position: relative; z-index: 10; width: 100%;
+            border-radius: 28px; border: 1px solid #e2e8f0;
+            background: #fff; overflow: hidden;
+            box-shadow: 0 18px 40px rgba(15,23,42,0.08);
+            transition: all 0.3s;
+        }
+        .badge-critical { border:1px solid #fecdd3; background:#fff1f2; color:#be123c; }
+        .badge-error    { border:1px solid #fecdd3; background:#fff1f2; color:#be123c; }
+        .badge-warning  { border:1px solid #fde68a; background:#fffbeb; color:#b45309; }
+        .badge-info     { border:1px solid #99f6e4; background:#f0fdfa; color:#0f766e; }
+        .badge-default  { border:1px solid #99f6e4; background:#f0fdfa; color:#0f766e; }
+
+        .btn-analyze {
+            display:inline-flex; align-items:center; gap:6px;
+            border-radius:999px; border:1px solid #ddd6fe;
+            background:#f5f3ff; padding:6px 14px;
+            font-size:11px; font-weight:700; color:#6d28d9;
+            white-space:nowrap; cursor:pointer;
+            box-shadow:0 6px 14px rgba(109,40,217,0.10);
+            transition:all 0.25s;
+        }
+        .btn-analyze:hover { background:#6d28d9; color:#fff; box-shadow:0 10px 22px rgba(109,40,217,0.24); }
+        .btn-analyze:disabled { opacity:0.5; cursor:not-allowed; }
+
+        .modal-overlay {
+            position:fixed; inset:0; z-index:50;
+            display:flex; align-items:center; justify-content:center;
+            background:rgba(15,23,42,0.6); padding:16px;
+            backdrop-filter:blur(6px);
+        }
+        .modal-box {
+            width:100%; max-width:560px; border-radius:28px;
+            border:1px solid #e2e8f0; background:#fff;
+            box-shadow:0 32px 80px rgba(15,23,42,0.22);
+            animation: slideUp 0.25s ease both;
+        }
+        .toast {
+            position:fixed; bottom:24px; right:24px; z-index:60;
+            display:flex; align-items:center; gap:12px;
+            border-radius:16px; border:1px solid #fecdd3; background:#fff1f2;
+            padding:14px 20px; box-shadow:0 20px 50px rgba(190,24,93,0.15);
+            animation: slideUp 0.25s ease both;
+        }
+
+        tr:hover td { background:#f0f9ff; }
+        .spinner-icon { display:inline-block; }
+        .spinner-icon.active { animation: spin 0.8s linear infinite; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+
+<!-- Background blobs -->
+<div style="position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;">
+    <div class="blob-1" style="position:absolute;left:-60px;top:0;width:340px;height:340px;border-radius:50%;background:rgba(147,197,253,0.45);filter:blur(95px);"></div>
+    <div class="blob-2" style="position:absolute;right:-80px;top:80px;width:360px;height:360px;border-radius:50%;background:rgba(94,234,212,0.40);filter:blur(110px);"></div>
+    <div class="blob-1" style="position:absolute;bottom:0;left:33%;width:280px;height:280px;border-radius:50%;background:rgba(253,164,175,0.30);filter:blur(100px);"></div>
+    <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(148,163,184,0.07) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,0.07) 1px,transparent 1px);background-size:56px 56px;"></div>
+</div>
+
+<main style="position:relative;z-index:10;" class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+
+    <!-- ── Hero Header ─────────────────────────────────────────────────────── -->
+    <div class="panel px-6 py-7 sm:px-10 sm:py-8 mb-8">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-widest text-blue-700">Offline Cyber Defense Console</p>
+                <div class="mt-3 flex flex-col gap-3 md:flex-row md:items-center">
+                    <h1 class="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
+                        AEGIS <span class="text-blue-700">SOC Analyst</span>
+                    </h1>
+                    <span class="inline-flex w-fit items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-slate-600" style="box-shadow:0 8px 18px rgba(15,23,42,0.05)">
+                        Offline Mode
+                    </span>
+                </div>
+                <p class="mt-4 max-w-2xl text-base leading-8 text-slate-600">
+                    Advanced local security review, fast triage, and analyst handoffs — designed for air-gapped workflows. Powered by SQLite FTS5.
+                </p>
+            </div>
+            <!-- Status Pill -->
+            <div class="flex flex-col items-start gap-2 lg:items-end">
+                <div id="status-pill" class="inline-flex items-center gap-3 rounded-full px-5 py-2.5 text-sm font-bold border border-amber-200 bg-amber-50 text-amber-700" style="box-shadow:0 12px 30px rgba(217,119,6,0.10)">
+                    <span class="relative flex h-3 w-3">
+                        <span class="ping-dot absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-40"></span>
+                        <span id="status-dot" class="relative inline-flex h-3 w-3 rounded-full bg-amber-500"></span>
+                    </span>
+                    <span id="status-label">Connecting...</span>
+                </div>
+                <p class="mono text-xs text-slate-400">Endpoint: 127.0.0.1:8000/api/logs</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Search + Stats Row ──────────────────────────────────────────────── -->
+    <div class="grid gap-6 mb-8 md:grid-cols-3">
+        <!-- Search bar (spans 2 cols) -->
+        <div class="panel p-6 sm:p-8 md:col-span-2">
+            <p class="text-xs font-bold uppercase tracking-widest text-teal-700">Live Query</p>
+            <h2 class="mt-2 text-2xl font-bold tracking-tight text-slate-900">FTS5 Search Engine</h2>
+            <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-1 transition-all focus-within:border-blue-300 focus-within:bg-white focus-within:shadow-lg">
+                <label class="flex items-center gap-3 rounded-xl bg-white px-4 py-3.5">
+                    <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input id="search-input" type="text" placeholder="Search severity, provider, message… (SQLite FTS5)"
+                        class="w-full bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400">
+                    <button id="clear-search" onclick="clearSearch()" style="display:none" class="text-slate-400 hover:text-slate-700 text-lg leading-none">✕</button>
+                </label>
+            </div>
+            <p class="mt-3 text-xs text-slate-500">Results come from the backend SQLite FTS5 engine — sub-millisecond full-text search across all log fields.</p>
+        </div>
+
+        <!-- Quick stats card -->
+        <div class="panel p-6 sm:p-8 flex flex-col justify-between">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-widest text-violet-700">Stats</p>
+                <h2 class="mt-2 text-2xl font-bold tracking-tight text-slate-900">Event Summary</h2>
+            </div>
+            <div class="mt-4 space-y-3">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-500 font-medium">Loaded Events</span>
+                    <span id="stat-total" class="font-bold text-slate-900">—</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="font-medium" style="color:#be123c">Critical / Error</span>
+                    <span id="stat-critical" class="font-bold" style="color:#be123c">—</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="font-medium" style="color:#b45309">Warnings</span>
+                    <span id="stat-warning" class="font-bold" style="color:#b45309">—</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="font-medium" style="color:#0f766e">Informational</span>
+                    <span id="stat-info" class="font-bold" style="color:#0f766e">—</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Event Feed Table ────────────────────────────────────────────────── -->
+    <div class="panel mb-10">
+        <!-- Table header bar -->
+        <div class="flex flex-col gap-4 border-b border-slate-200 bg-slate-50/80 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Security Stream</p>
+                <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">Event Feed</h2>
+                <p id="sync-label" class="mt-1 text-xs text-slate-500 mono">Waiting for local API...</p>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <span id="event-count" class="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-4 py-2 text-xs font-bold uppercase tracking-widest text-blue-700" style="box-shadow:0 8px 18px rgba(37,99,235,0.08)">
+                    0 Events
+                </span>
+                <button id="sync-btn" onclick="fetchLogs()" class="inline-flex items-center gap-2 rounded-full bg-blue-700 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed" style="box-shadow:0 14px 28px rgba(29,78,216,0.25)">
+                    <svg id="sync-icon" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Sync Feed
+                </button>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+                <thead class="border-b border-slate-200 bg-slate-50">
+                    <tr>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest text-slate-500 whitespace-nowrap">Timestamp</th>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Severity</th>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Source</th>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Event Type</th>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Message</th>
+                        <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-widest text-slate-500">AEGIS AI</th>
+                    </tr>
+                </thead>
+                <tbody id="log-table-body" class="bg-white divide-y divide-slate-100">
+                    <tr><td colspan="6" class="px-6 py-20 text-center text-slate-400 text-sm">Loading event feed...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<!-- ── AI Analysis Modal ──────────────────────────────────────────────────── -->
+<div id="ai-modal" class="modal-overlay" style="display:none" onclick="closeModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="px-7 py-5 border-b border-slate-200" style="background:linear-gradient(135deg,#0f172a,#1e3a8a)">
+            <p class="text-xs font-bold uppercase tracking-widest text-blue-400">AEGIS AI Engine</p>
+            <h3 class="mt-1 text-xl font-extrabold tracking-tight text-white">Threat Analysis Report</h3>
+            <p id="modal-model" class="mt-1 mono text-xs text-slate-400"></p>
+        </div>
+        <div class="px-7 py-6">
+            <div class="flex items-center gap-3 mb-3">
+                <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Threat Level:</span>
+                <span id="modal-threat" class="text-base font-extrabold"></span>
+            </div>
+            <p id="modal-analysis" class="text-sm leading-7 text-slate-700"></p>
+        </div>
+        <div class="border-t border-slate-100 bg-slate-50 px-7 py-4 text-right">
+            <button onclick="closeModal()" class="rounded-full bg-slate-900 px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-blue-700" style="box-shadow:0 8px 20px rgba(15,23,42,0.20)">
+                Dismiss
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Error Toast ────────────────────────────────────────────────────────── -->
+<div id="toast" class="toast" style="display:none">
+    <svg class="h-5 w-5 flex-shrink-0" style="color:#be123c" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/>
+    </svg>
+    <p id="toast-msg" class="text-sm font-semibold" style="color:#be123c"></p>
+    <button onclick="hideToast()" class="ml-2 text-rose-400 hover:text-rose-700 text-lg">✕</button>
+</div>
+
+<script>
+const API_BASE       = "http://127.0.0.1:8000";
+const API_LOGS_URL   = `${API_BASE}/api/logs`;
+const API_ANALYZE    = `${API_BASE}/api/analyze`;
+
+let allLogs      = [];
+let searchTimer  = null;
+let analyzingRow = null;
+
+// ── Search input wiring ────────────────────────────────────────────────────
+document.getElementById("search-input").addEventListener("input", function () {
+    const q = this.value.trim();
+    document.getElementById("clear-search").style.display = q ? "inline" : "none";
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => fetchLogs(q), 350);
+});
+
+function clearSearch() {
+    document.getElementById("search-input").value = "";
+    document.getElementById("clear-search").style.display = "none";
+    fetchLogs("");
+}
+
+// ── Severity badge ─────────────────────────────────────────────────────────
+function badgeClass(sev) {
+    const s = String(sev || "").toUpperCase();
+    if (s === "CRITICAL" || s === "ERROR")   return "badge-critical";
+    if (s === "WARNING"  || s === "WARN")    return "badge-warning";
+    return "badge-info";
+}
+
+function threatColor(level) {
+    const l = String(level || "").toLowerCase();
+    if (l === "critical") return "#be123c";
+    if (l === "high")     return "#ea580c";
+    if (l === "medium")   return "#d97706";
+    return "#0f766e";
+}
+
+// ── Set status pill ────────────────────────────────────────────────────────
+function setStatus(state) {
+    const pill  = document.getElementById("status-pill");
+    const label = document.getElementById("status-label");
+    const dot   = document.getElementById("status-dot");
+    if (state === "online") {
+        pill.className = "inline-flex items-center gap-3 rounded-full px-5 py-2.5 text-sm font-bold border border-teal-200 bg-teal-50 text-teal-700";
+        dot.style.background  = "#14b8a6";
+        label.textContent     = "Feed Online";
+    } else if (state === "offline") {
+        pill.className = "inline-flex items-center gap-3 rounded-full px-5 py-2.5 text-sm font-bold border border-rose-200 bg-rose-50 text-rose-700";
+        dot.style.background  = "#f43f5e";
+        label.textContent     = "Feed Offline";
+    } else {
+        pill.className = "inline-flex items-center gap-3 rounded-full px-5 py-2.5 text-sm font-bold border border-amber-200 bg-amber-50 text-amber-700";
+        dot.style.background  = "#f59e0b";
+        label.textContent     = "Connecting...";
+    }
+}
+
+// ── Update stats cards ─────────────────────────────────────────────────────
+function updateStats(logs) {
+    const critical = logs.filter(l => {
+        const s = String(l.severity || "").toUpperCase();
+        return s === "CRITICAL" || s === "ERROR";
+    }).length;
+    const warning  = logs.filter(l => {
+        const s = String(l.severity || "").toUpperCase();
+        return s === "WARNING" || s === "WARN";
+    }).length;
+    const info     = logs.length - critical - warning;
+
+    document.getElementById("stat-total").textContent    = logs.length;
+    document.getElementById("stat-critical").textContent = critical;
+    document.getElementById("stat-warning").textContent  = warning;
+    document.getElementById("stat-info").textContent     = Math.max(0, info);
+}
+
+// ── Render table ───────────────────────────────────────────────────────────
+function renderTable(logs, query) {
+    const tbody = document.getElementById("log-table-body");
+    document.getElementById("event-count").textContent = `${logs.length} Events`;
+
+    if (!logs.length) {
+        const msg = query
+            ? `No anomalies detected for "${query}".`
+            : "No events returned by the local analyst API.";
+        tbody.innerHTML = `
+            <tr><td colspan="6" class="px-6 py-20 text-center text-slate-400">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+                    <svg style="width:40px;height:40px;color:#cbd5e1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="text-sm font-semibold">${msg}</span>
+                </div>
+            </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = logs.map((log, i) => {
+        const rowId    = log.id || `row-${i}`;
+        const badgeCls = badgeClass(log.severity);
+        const sev      = String(log.severity || "INFO").toUpperCase();
+        const msg      = escapeHtml(log.message || "");
+        const ts       = escapeHtml(log.timestamp || "");
+        const src      = escapeHtml(log.source_ip || "");
+        const ev       = escapeHtml(log.event_type || "");
+
+        return `
+        <tr class="border-b border-slate-100 transition-colors hover:bg-blue-50/60 fade-in">
+            <td class="px-5 py-4 mono text-xs text-slate-600 whitespace-nowrap">${ts}</td>
+            <td class="px-5 py-4">
+                <span class="${badgeCls}" style="display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:4px 12px;font-size:11px;font-weight:700;letter-spacing:0.08em;min-width:80px;">${sev}</span>
+            </td>
+            <td class="px-5 py-4 mono text-xs text-slate-600 whitespace-nowrap">${src}</td>
+            <td class="px-5 py-4 text-sm font-semibold text-slate-800 max-w-[160px] truncate" title="${ev}">${ev}</td>
+            <td class="px-5 py-4 text-sm text-slate-600 max-w-sm" style="line-height:1.7">${msg}</td>
+            <td class="px-5 py-4">
+                <button class="btn-analyze" id="analyze-btn-${rowId}"
+                    onclick="analyzeLog(${JSON.stringify(log).replace(/"/g, '&quot;')}, '${rowId}')">
+                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Analyze with AEGIS AI
+                </button>
+            </td>
+        </tr>`;
+    }).join("");
+
+    updateStats(logs);
+}
+
+// ── Fetch logs from FastAPI backend ────────────────────────────────────────
+async function fetchLogs(search) {
+    if (search === undefined) search = document.getElementById("search-input").value.trim();
+
+    const syncBtn  = document.getElementById("sync-btn");
+    const syncIcon = document.getElementById("sync-icon");
+    syncBtn.disabled = true;
+    syncIcon.classList.add("spin");
+
+    try {
+        const url = new URL(API_LOGS_URL);
+        if (search) url.searchParams.set("search", search);
+        url.searchParams.set("limit", "200");
+
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+        allLogs = Array.isArray(data.logs) ? data.logs : [];
+
+        renderTable(allLogs, search);
+        setStatus("online");
+
+        const now = new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+        document.getElementById("sync-label").textContent =
+            search
+                ? `FTS5 results for "${search}" — ${allLogs.length} match(es) — ${now}`
+                : `Last sync ${now} from local analyst endpoint.`;
+
+    } catch (err) {
+        console.error("Fetch error:", err);
+        allLogs = [];
+        setStatus("offline");
+        document.getElementById("log-table-body").innerHTML = `
+            <tr><td colspan="6" class="px-6 py-16 text-center text-sm font-semibold" style="background:#fff1f2;color:#be123c;">
+                ⚠ Unable to reach 127.0.0.1:8000/api/logs. Confirm the backend or Docker container is running.
+            </td></tr>`;
+        document.getElementById("sync-label").textContent = "Backend offline. Retry when the API is running.";
+        showToast("Backend unreachable. Ensure the FastAPI server is running on port 8000.");
+    } finally {
+        syncBtn.disabled = false;
+        syncIcon.classList.remove("spin");
+    }
+}
+
+// ── Analyze log with AEGIS AI ──────────────────────────────────────────────
+async function analyzeLog(log, rowId) {
+    if (analyzingRow) return;
+    analyzingRow = rowId;
+
+    const btn = document.getElementById(`analyze-btn-${rowId}`);
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="h-3 w-3 spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"/></svg> Scanning...`;
+    }
+
+    try {
+        const res = await fetch(API_ANALYZE, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                message:    log.message    || "",
+                severity:   log.severity   || "Unknown",
+                event_type: log.event_type || "Unknown"
+            })
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const result = await res.json();
+        openModal(result);
+
+    } catch (err) {
+        console.error("AI analyze error:", err);
+        showToast("AEGIS AI engine unreachable. Ensure the backend is running.");
+    } finally {
+        analyzingRow = null;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> Analyze with AEGIS AI`;
+        }
+    }
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function openModal(result) {
+    document.getElementById("modal-threat").textContent   = result.threat_level || "Unknown";
+    document.getElementById("modal-threat").style.color   = threatColor(result.threat_level);
+    document.getElementById("modal-analysis").textContent = result.analysis || "";
+    document.getElementById("modal-model").textContent    = result.ai_model || "";
+    document.getElementById("ai-modal").style.display     = "flex";
+}
+function closeModal() {
+    document.getElementById("ai-modal").style.display = "none";
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+    document.getElementById("toast-msg").textContent = msg;
+    document.getElementById("toast").style.display   = "flex";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 6000);
+}
+function hideToast() {
+    document.getElementById("toast").style.display = "none";
+}
+
+// ── Escape HTML ────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── Initial load ───────────────────────────────────────────────────────────
+fetchLogs();
+</script>
 </body>
 </html>
