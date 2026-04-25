@@ -165,7 +165,7 @@ export default function App() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6 }}
-        className="relative z-10 mx-auto w-full max-w-screen-xl px-4 py-6 sm:px-6 lg:px-8"
+        className="relative z-10 mx-auto w-full max-w-[1440px] px-6 py-8 sm:px-8 lg:px-10"
       >
         <Header status={status} />
         <TelemetryCards telemetry={telemetry} />
