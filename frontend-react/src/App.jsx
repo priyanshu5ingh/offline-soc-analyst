@@ -29,10 +29,10 @@ function Toast({ message, onClose }) {
       exit={{ opacity: 0, y: 60, scale: 0.9 }}
       transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass-strong flex items-center gap-3 px-6 py-3.5 rounded-xl"
-      style={{ border: '1px solid rgba(99,102,241,0.2)', boxShadow: '0 0 30px rgba(99,102,241,0.15)' }}
+      style={{ border: '1px solid rgba(99,102,241,0.3)', boxShadow: '0 4px 20px rgba(99,102,241,0.1)' }}
     >
-      <span className="mono text-sm font-semibold" style={{ color: '#e2e8f0' }}>{message}</span>
-      <button onClick={onClose} className="text-lg" style={{ color: '#64748b' }}>✕</button>
+      <span className="mono text-sm font-semibold" style={{ color: '#1e293b' }}>{message}</span>
+      <button onClick={onClose} className="text-lg" style={{ color: '#94a3b8' }}>✕</button>
     </motion.div>
   );
 }

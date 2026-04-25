@@ -2,10 +2,10 @@ import { motion } from 'framer-motion';
 import { Shield, X, AlertTriangle, AlertCircle } from 'lucide-react';
 
 const threatThemes = {
-  Critical: { bg: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(190,18,60,0.08))', border: 'rgba(239,68,68,0.25)', text: '#fca5a5', glow: 'rgba(239,68,68,0.25)', icon: AlertTriangle },
-  High:     { bg: 'linear-gradient(135deg, rgba(249,115,22,0.12), rgba(234,88,12,0.08))', border: 'rgba(249,115,22,0.25)', text: '#fdba74', glow: 'rgba(249,115,22,0.25)', icon: AlertCircle },
-  Medium:   { bg: 'linear-gradient(135deg, rgba(234,179,8,0.12), rgba(202,138,4,0.08))',  border: 'rgba(234,179,8,0.2)',   text: '#fde68a', glow: 'rgba(234,179,8,0.2)',  icon: AlertCircle },
-  Low:      { bg: 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.06))',   border: 'rgba(16,185,129,0.2)',  text: '#6ee7b7', glow: 'rgba(16,185,129,0.15)', icon: Shield },
+  Critical: { bg: '#fee2e2', border: '#fecaca', text: '#991b1b', glow: 'rgba(239,68,68,0.15)', icon: AlertTriangle },
+  High:     { bg: '#ffedd5', border: '#fed7aa', text: '#9a3412', glow: 'rgba(249,115,22,0.15)', icon: AlertCircle },
+  Medium:   { bg: '#fef3c7', border: '#fde68a', text: '#92400e', glow: 'rgba(234,179,8,0.15)',  icon: AlertCircle },
+  Low:      { bg: '#ecfdf5', border: '#a7f3d0', text: '#065f46', glow: 'rgba(16,185,129,0.1)',  icon: Shield },
 };
 
 export default function AnalysisModal({ log, result, onClose }) {
@@ -22,44 +22,39 @@ export default function AnalysisModal({ log, result, onClose }) {
     >
       <motion.div
         onClick={(e) => e.stopPropagation()}
-        initial={{ opacity: 0, scale: 0.92, y: 40 }}
+        initial={{ opacity: 0, scale: 0.95, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.92, y: 40 }}
-        transition={{ type: 'spring', bounce: 0.15, duration: 0.6 }}
-        className="glass-strong overflow-hidden"
+        exit={{ opacity: 0, scale: 0.95, y: 30 }}
+        transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+        className="glass-strong overflow-hidden bg-white"
         style={{
           width: '100%', maxWidth: 580,
-          boxShadow: `0 0 80px ${t.glow}, 0 25px 80px -20px rgba(0,0,0,0.6)`,
+          boxShadow: `0 0 60px ${t.glow}, 0 20px 40px -10px rgba(0,0,0,0.1)`,
+          border: '1px solid #e2e8f0'
         }}
       >
-        {/* Chrome edge */}
-        <div style={{
-          height: 1,
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), rgba(255,255,255,0.15), rgba(255,255,255,0.08), transparent)',
-        }} />
-
         {/* Header */}
         <div style={{
           padding: '28px 32px 20px',
-          background: 'linear-gradient(135deg, rgba(10,10,30,0.95), rgba(20,10,40,0.95))',
-          borderBottom: '1px solid rgba(255,255,255,0.04)',
+          background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)',
+          borderBottom: '1px solid #e2e8f0',
         }}>
           <div className="flex items-start justify-between">
             <div>
-              <p className="mono text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#6366f1' }}>
+              <p className="mono text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#4f46e5' }}>
                 // AEGIS AI Engine — Threat Analysis Report
               </p>
-              <h3 className="mt-2 text-xl font-extrabold tracking-tight" style={{ color: '#e2e8f0' }}>
+              <h3 className="mt-2 text-xl font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
                 Forensic Intelligence Output
               </h3>
-              <p className="mono text-[11px] mt-1.5" style={{ color: '#374151' }}>
+              <p className="mono text-[11px] mt-1.5 font-semibold" style={{ color: '#64748b' }}>
                 Model: {result.ai_model}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl transition-colors hover:bg-white/5"
-              style={{ color: '#4b5563' }}
+              className="p-2 rounded-xl transition-colors hover:bg-slate-200"
+              style={{ color: '#64748b' }}
             >
               <X size={18} />
             </button>
@@ -73,7 +68,7 @@ export default function AnalysisModal({ log, result, onClose }) {
           borderBottom: `1px solid ${t.border}`,
         }}>
           <ThreatIcon size={16} style={{ color: t.text }} />
-          <span className="mono text-[10px] font-bold uppercase tracking-[0.15em]" style={{ color: '#4b5563' }}>
+          <span className="mono text-[10px] font-bold uppercase tracking-[0.15em]" style={{ color: t.text, opacity: 0.8 }}>
             Threat Level:
           </span>
           <motion.span
@@ -81,7 +76,7 @@ export default function AnalysisModal({ log, result, onClose }) {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', bounce: 0.4, delay: 0.15 }}
             className="font-display text-lg font-black"
-            style={{ color: t.text, textShadow: `0 0 16px ${t.glow}` }}
+            style={{ color: t.text }}
           >
             {result.threat_level}
           </motion.span>
@@ -89,15 +84,15 @@ export default function AnalysisModal({ log, result, onClose }) {
 
         {/* Analysis */}
         <div style={{ padding: '28px 32px' }}>
-          <p className="mono text-[10px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: '#4b5563' }}>
+          <p className="mono text-[10px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: '#64748b' }}>
             // Recommended IR Action
           </p>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-sm leading-7"
-            style={{ color: '#94a3b8' }}
+            className="text-sm leading-7 font-medium"
+            style={{ color: '#334155' }}
           >
             {result.analysis}
           </motion.p>
@@ -106,20 +101,19 @@ export default function AnalysisModal({ log, result, onClose }) {
         {/* Footer */}
         <div style={{
           padding: '16px 32px',
-          borderTop: '1px solid rgba(255,255,255,0.03)',
-          background: 'rgba(0,0,0,0.15)',
+          borderTop: '1px solid #e2e8f0',
+          background: '#f8fafc',
           display: 'flex', justifyContent: 'flex-end',
         }}>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onClose}
-            className="mono text-sm font-bold px-6 py-2.5 rounded-xl"
+            className="mono text-sm font-bold px-6 py-2.5 rounded-xl shadow-sm"
             style={{
-              background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.08))',
-              border: '1px solid rgba(99,102,241,0.2)',
-              color: '#818cf8',
-              boxShadow: '0 1px 0 0 rgba(255,255,255,0.05) inset',
+              background: '#fff',
+              border: '1px solid #cbd5e1',
+              color: '#475569',
             }}
           >
             [ DISMISS ]

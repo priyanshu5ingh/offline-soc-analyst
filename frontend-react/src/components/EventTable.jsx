@@ -54,58 +54,51 @@ export default function EventTable({ logs, totalCount, isLoading }) {
         className="glass-strong mb-10 overflow-hidden"
         style={{ padding: 0 }}
       >
-        {/* Chrome top edge */}
-        <div style={{
-          height: 1,
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), rgba(99,102,241,0.12), rgba(255,255,255,0.06), transparent)',
-        }} />
-
         {/* ── Table Header Bar ────────────────────────────────────────── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
           style={{
             padding: '20px 32px',
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.1) 100%)',
-            borderBottom: '1px solid rgba(255,255,255,0.03)',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)',
+            borderBottom: '1px solid #e2e8f0',
           }}
         >
           <div className="flex items-center gap-4 flex-wrap">
             <div>
-              <p className="mono text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#4b5563' }}>
+              <p className="mono text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#475569' }}>
                 // Security Stream
               </p>
-              <h2 className="mt-1 text-lg font-extrabold tracking-tight" style={{ color: '#e2e8f0' }}>
+              <h2 className="mt-1 text-lg font-extrabold tracking-tight" style={{ color: '#0f172a' }}>
                 Live Event Feed
               </h2>
             </div>
 
             <span className="mono inline-flex items-center rounded-lg px-3 py-1.5 text-[11px] font-bold" style={{
-              background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)', color: '#818cf8',
-              boxShadow: '0 0 8px rgba(99,102,241,0.1)',
+              background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8',
             }}>
               {totalCount.toLocaleString()} EVENTS
             </span>
 
             <span className="mono inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[11px] font-bold" style={{
-              background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', color: '#6ee7b7',
+              background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#047857',
             }}>
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: '#34d399', opacity: 0.4 }} />
-                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: '#34d399' }} />
+                <span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: '#10b981', opacity: 0.4 }} />
+                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: '#10b981' }} />
               </span>
               STREAM ACTIVE
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <Activity size={13} style={{ color: '#374151' }} />
-            <span className="mono text-[11px]" style={{ color: '#374151' }}>
+            <Activity size={13} style={{ color: '#64748b' }} />
+            <span className="mono text-[11px]" style={{ color: '#64748b' }}>
               Showing top {Math.min(200, logs.length)} of {totalCount.toLocaleString()}
             </span>
           </div>
         </div>
 
         {/* ── Table ───────────────────────────────────────────────────── */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto bg-white/50">
           <table className="data-table">
             <thead>
               <tr>
@@ -130,7 +123,7 @@ export default function EventTable({ logs, totalCount, isLoading }) {
                     <td colSpan={6} style={{ padding: '80px 0', textAlign: 'center' }}>
                       <div className="flex flex-col items-center gap-4">
                         <div className="spinner" style={{ width: 32, height: 32 }} />
-                        <span className="mono text-sm font-medium" style={{ color: '#374151' }}>
+                        <span className="mono text-sm font-semibold" style={{ color: '#475569' }}>
                           Loading event feed…
                         </span>
                       </div>
@@ -140,8 +133,8 @@ export default function EventTable({ logs, totalCount, isLoading }) {
                   <tr>
                     <td colSpan={6} style={{ padding: '80px 0', textAlign: 'center' }}>
                       <div className="flex flex-col items-center gap-4">
-                        <Scan size={40} style={{ color: 'rgba(99,102,241,0.15)' }} />
-                        <span className="mono text-sm font-medium" style={{ color: '#374151' }}>
+                        <Scan size={40} style={{ color: '#cbd5e1' }} />
+                        <span className="mono text-sm font-semibold" style={{ color: '#475569' }}>
                           No events match the current query.
                         </span>
                       </div>
@@ -154,29 +147,29 @@ export default function EventTable({ logs, totalCount, isLoading }) {
                       <motion.tr
                         key={`${log.timestamp}-${i}`}
                         variants={rowV}
-                        whileHover={{ backgroundColor: 'rgba(99,102,241,0.03)' }}
+                        whileHover={{ backgroundColor: 'rgba(241, 245, 249, 0.8)' }}
                         style={{ cursor: 'default', transition: 'background-color 0.2s ease' }}
                       >
-                        <td className="mono text-[12px] whitespace-nowrap" style={{ color: '#4b5563' }}>
+                        <td className="mono text-[12px] whitespace-nowrap" style={{ color: '#64748b' }}>
                           {String(log.timestamp || '')}
                         </td>
                         <td><SeverityBadge severity={log.severity} /></td>
                         <td className="whitespace-nowrap">
                           {isLive ? (
                             <span className="mono inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[10px] font-bold" style={{
-                              background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(52,211,153,0.2)', color: '#6ee7b7',
+                              background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#047857',
                             }}>
                               <Radio size={9} />
                               LIVE
                             </span>
                           ) : (
-                            <span className="mono text-[12px]" style={{ color: '#4b5563' }}>{String(log.source_ip || '')}</span>
+                            <span className="mono text-[12px] font-semibold" style={{ color: '#475569' }}>{String(log.source_ip || '')}</span>
                           )}
                         </td>
-                        <td className="mono text-[12px] max-w-[180px] truncate" style={{ color: '#6366f1' }} title={String(log.event_type || '')}>
+                        <td className="mono text-[12px] font-semibold max-w-[180px] truncate" style={{ color: '#4f46e5' }} title={String(log.event_type || '')}>
                           {String(log.event_type || '')}
                         </td>
-                        <td className="text-[12px] max-w-sm" style={{ color: '#64748b', lineHeight: 1.8 }}>
+                        <td className="text-[12px] max-w-sm" style={{ color: '#334155', lineHeight: 1.8 }}>
                           {String(log.message || '')}
                         </td>
                         <td style={{ textAlign: 'center' }}>
@@ -185,12 +178,12 @@ export default function EventTable({ logs, totalCount, isLoading }) {
                             whileTap={{ scale: 0.92 }}
                             onClick={() => handleAnalyze(log, i)}
                             disabled={analyzingId === i}
-                            className="mono inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[11px] font-bold transition-colors disabled:opacity-40"
+                            className="mono inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[11px] font-bold transition-all disabled:opacity-40"
                             style={{
-                              background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.1))',
-                              border: '1px solid rgba(99,102,241,0.2)',
-                              color: '#a5b4fc',
-                              boxShadow: '0 2px 8px -2px rgba(99,102,241,0.15), 0 1px 0 0 rgba(255,255,255,0.05) inset',
+                              background: '#fff',
+                              border: '1px solid #cbd5e1',
+                              color: '#4f46e5',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
                             }}
                           >
                             {analyzingId === i ? <Loader2 size={11} className="animate-spin" /> : <Scan size={11} />}
