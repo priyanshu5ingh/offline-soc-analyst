@@ -41,10 +41,10 @@ AEGIS is a **portable, fully offline SOC (Security Operations Center) Log Analys
 │                                                            │
 │   ┌──────────────┐         ┌────────────────────────────┐ │
 │   │   Frontend   │  HTTP   │       FastAPI Backend       │ │
-│   │  index.html  │◄───────►│       (Port 8000)          │ │
-│   │  Vanilla JS  │         │                            │ │
-│   │  Tailwind CSS│         │  ┌──────────────────────┐  │ │
-│   └──────────────┘         │  │   SQLite FTS5 Engine  │  │ │
+│   │ React + Vite │◄───────►│       (Port 8000)          │ │
+│   │  Tailwind v4 │         │                            │ │
+│   └──────────────┘         │  ┌──────────────────────┐  │ │
+│                            │  │   SQLite FTS5 Engine  │  │ │
 │                            │  │   (logs.db)           │  │ │
 │                            │  └──────────────────────┘  │ │
 │                            │                            │ │
@@ -67,7 +67,7 @@ offline-soc-analyst/
 │
 ├── 🐳 Dockerfile                  # Container build definition
 ├── 🐳 docker-compose.yml          # Compose shortcut (optional)
-├── 📖 README_OFFLINE.md           # You are here
+├── 📖 README.md                   # You are here
 │
 ├── backend/
 │   ├── 🐍 main.py                 # FastAPI app — ingestion, search, AI endpoint
@@ -77,9 +77,10 @@ offline-soc-analyst/
 │   ├── 🐍 generate_logs.py        # 10,000-line synthetic log generator
 │   └── 💾 logs.db                 # SQLite FTS5 database (auto-generated on startup)
 │
-└── frontend/
-    ├── 🌐 index.html              # Complete self-contained dashboard (Vanilla JS)
-    └── 📦 package.json            # (Optional) Node tooling config
+└── frontend-react/
+    ├── 🌐 index.html              # Vite entry point
+    ├── 📁 src/                    # React components and styling (Light Marble Theme)
+    └── 📦 package.json            # Node tooling config (Vite, Framer Motion, Tailwind)
 ```
 
 ---
@@ -88,27 +89,20 @@ offline-soc-analyst/
 
 > ✅ Best for development and live demos with the backend already running.
 
-### Step 1 — Install dependencies
+### Step 1 — Start the Backend (Windows & Mac)
 
-```bash
+**Windows (PowerShell):**
+```powershell
 cd backend
 pip install -r requirements.txt
-```
-
-### Step 2 — (Optional) Refresh your Windows Event Logs
-
-Run this in PowerShell to export fresh real logs from your machine:
-
-```powershell
-Get-WinEvent -LogName Application, System -MaxEvents 5000 -ErrorAction SilentlyContinue |
-  Select-Object TimeCreated, ProviderName, LevelDisplayName, Message |
-  Export-Csv -Path ".\real_windows_logs.csv" -NoTypeInformation
-```
-
-### Step 3 — Start the backend
-
-```bash
 python -m uvicorn main:app --reload --port 8000
+```
+
+**Mac (Terminal):**
+```bash
+cd backend
+pip3 install -r requirements.txt
+python3 -m uvicorn main:app --reload --port 8000
 ```
 
 You should see:
@@ -117,18 +111,35 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000
 ```
 
-### Step 4 — Open the dashboard
+### Step 2 — (Optional) Refresh Logs
 
-Simply open `frontend/index.html` in your browser:
-- Double-click the file, **OR**
-- Serve it locally for best results:
-
-```bash
-cd frontend
-python -m http.server 3000
+**Windows (Real Event Logs):**
+Run this in PowerShell as Administrator to export fresh logs from your machine:
+```powershell
+Get-WinEvent -LogName Application, System -MaxEvents 5000 -ErrorAction SilentlyContinue |
+  Select-Object TimeCreated, ProviderName, LevelDisplayName, Message |
+  Export-Csv -Path ".\backend\real_windows_logs.csv" -NoTypeInformation
 ```
 
-Then open **http://localhost:3000** in your browser.
+**Mac (Synthetic Logs):**
+Since macOS does not have Windows Event Logs, you can generate a synthetic log file:
+```bash
+cd backend
+python3 generate_logs.py
+```
+
+### Step 3 — Start the Frontend (Windows & Mac)
+
+Open a **new terminal window** (leave the backend running).
+
+**Windows & Mac:**
+```bash
+cd frontend-react
+npm install
+npm run dev
+```
+
+Then open **http://localhost:5173** in your browser to view the Light Marble Dashboard.
 
 ---
 
@@ -144,21 +155,23 @@ docker build -t aegis_v1 .
 
 ### Step 2 — Run the container
 
+**Mac & Windows (Bash/Terminal):**
 ```bash
-docker run -d -p 8000:8000 --name aegis-app aegis_v1
+docker run -d -p 8000:8000 -v $(pwd)/shared_logs:/app/shared_logs --name aegis-app aegis_v1
 ```
 
-### Step 3 — Verify data persistence inside the container
-
-```bash
-docker exec aegis-app sqlite3 logs.db "SELECT * FROM logs LIMIT 5;"
+**Windows (PowerShell):**
+```powershell
+docker run -d -p 8000:8000 -v ${PWD}/shared_logs:/app/shared_logs --name aegis-app aegis_v1
 ```
 
-You should see 5 rows of Windows Event Log data printed to the terminal — confirming the SQLite FTS5 database was built **inside the container** on boot.
-
-### Step 4 — Open the dashboard
-
-Open `frontend/index.html` in your browser. The dashboard connects to `http://127.0.0.1:8000` automatically.
+### Step 3 — Start the Frontend
+Since Docker only runs the backend API, you must run the Vite frontend locally.
+```bash
+cd frontend-react
+npm install
+npm run dev
+```
 
 ---
 

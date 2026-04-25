@@ -61,8 +61,8 @@ function formatTime(date = new Date()) {
 function MiniCard({ label, title, detail, tone = "purple" }) {
     const toneMap = {
         purple: { bar: "bg-violet-700", label: "text-violet-700", glow: "bg-violet-100" },
-        teal:   { bar: "bg-teal-700",   label: "text-teal-700",   glow: "bg-teal-100" },
-        blue:   { bar: "bg-blue-700",   label: "text-blue-700",   glow: "bg-blue-100" }
+        teal: { bar: "bg-teal-700", label: "text-teal-700", glow: "bg-teal-100" },
+        blue: { bar: "bg-blue-700", label: "text-blue-700", glow: "bg-blue-100" }
     };
     const toneStyles = toneMap[tone] ?? toneMap.purple;
 
